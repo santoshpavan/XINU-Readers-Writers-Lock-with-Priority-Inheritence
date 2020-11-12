@@ -26,6 +26,7 @@ extern	int	pci_init();
 extern	int	mon_init();
 extern	int	ripinit();
 LOCAL   int	sysinit();
+extern  void linit();
 
 /* Declarations of major kernel variables */
 struct	pentry	proctab[NPROC]; /* process table			*/
@@ -176,7 +177,10 @@ LOCAL int sysinit()
 		(sptr = &semaph[i])->sstate = SFREE;
 		sptr->sqtail = 1 + (sptr->sqhead = newqueue());
 	}
-
+    
+    /*PSP: locks initialize */
+    linit();
+    
 	rdytail = 1 + (rdyhead=newqueue());/* initialize ready list */
 
 #ifdef	MEMMARK

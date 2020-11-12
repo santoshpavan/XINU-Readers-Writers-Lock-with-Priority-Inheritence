@@ -26,7 +26,6 @@ extern	int	pci_init();
 extern	int	mon_init();
 extern	int	ripinit();
 LOCAL   int	sysinit();
-extern  void linit();
 
 /* Declarations of major kernel variables */
 struct	pentry	proctab[NPROC]; /* process table			*/
@@ -49,6 +48,10 @@ int	console_dev;		/* console device			*/
 
 int	rdyhead, rdytail;	/* head/tail of ready list (q indicies)	*/
 char	vers[100];		/* Xinu version printed at startup	*/
+
+
+extern  void linit();
+extern int nextlock;
 
 /************************************************************************/
 /***				NOTE:				      ***/
@@ -180,6 +183,7 @@ LOCAL int sysinit()
     
     /*PSP: locks initialize */
     linit();
+    nextlock = NLOCKS - 1;
     
 	rdytail = 1 + (rdyhead=newqueue());/* initialize ready list */
 

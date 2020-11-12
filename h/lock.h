@@ -12,7 +12,6 @@
 
 struct	lentry	{
 	char  lstate;    /* the state LFREE or LUSED */
-	int	  lockcnt;   /* count for this lock		*/
 	int	  lqhead;	 /* q index of head of list	*/
 	int	  lqtail;    /* q index of tail of list	*/
     char  ltype;     /* LREAD or LWRITE */        

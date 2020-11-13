@@ -34,7 +34,7 @@ int lock (int ldes, int type, int priority) {
         lptr->lstate = LUSED;
         lptr->ltype = type;
         lptr->proc_types[currpid] = type;
-        proctab[currpid].locks[ldes] = type;
+        proctab[currpid].lock_types[ldes] = type;
         if (type == LWRITE)
             lptr->nreaders = 0; //no readers when writer locked it
         restore(ps);
@@ -47,7 +47,7 @@ int lock (int ldes, int type, int priority) {
             if (highes_write_prio <= priority) {
                 // give lock to this proc
                 lptr->proc_types[currpid] = type;
-                proctab[currpid].locks[ldes] = type;
+                proctab[currpid].lock_types[ldes] = type;
                 lptr->nreaders++;
                 // assign all readers with greater priority than highest writer priority
                 assignOtherWaitingReaders(ldes, highest_writer_prio);
@@ -75,7 +75,7 @@ int lock (int ldes, int type, int priority) {
 void processWaitForLock(int lock_ind, int type) {
     struct pentry *pptr = &proctab[currpid];
     pptr->pstate = PRWAIT;
-    pptr->locks[lock_ind] = type;
+    pptr->lock_types[lock_ind] = type;
     // insert in the queue based on waiting priority
     insert(currpid, locktab[lock_ind].lhead, locktab[lock_ind].ltail);
     pptr->wait_time_start = ctr1000;
@@ -104,7 +104,7 @@ void assignOtherWaitingReaders(int lock_ind, int write_prio) {
         else{
             // assign this lock to this reader
             lptr->proc_types[currpid] = type;
-            proctab[currpid].locks[ldes] = type;
+            proctab[currpid].lock_types[ldes] = type;
             lptr->nreaders++;
         }
     }

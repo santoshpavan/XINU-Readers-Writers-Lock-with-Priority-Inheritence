@@ -13,6 +13,11 @@
 #define	LUSED	'u'
 #define LREAD   'r'
 #define LWRITE  'w'
+/* 
+LNONE means no mapping for that process and lock
+LNONE => neither LREAD or LWRITE
+*/
+#define LNONE   'u'
 
 /*
 #define NOT_WAITING  0
@@ -38,7 +43,10 @@ int ldelete (int);
 int lock (int, int , int);
 int releaseall (int, int,...);
 
-// from clkinit.c
+// clkinit.c
 extern unsigned long ctr1000;
+
+// lock.c
+void assignOtherWaitingReaders(int, int);
 
 #endif

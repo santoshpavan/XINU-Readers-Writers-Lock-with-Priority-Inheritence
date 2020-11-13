@@ -62,7 +62,7 @@ struct	pentry	{
 	int	pwaitret;
     
     /* PSP */
-    int locks[NLOCKS]; /* WAITING or NOT_WAITING or ACQUIRED */
+    char lock_types[NLOCKS]; /* LWRITE or LREAD*/
     unsigned long wait_time_start; //has the start time of waiting
 };
 
@@ -73,6 +73,7 @@ extern	int	nextproc;		/* search point for free slot	*/
 extern	int	currpid;		/* currently executing process	*/
 
 /* PSP */
+/*
 #ifndef
 #define NOT_WAITING  0
 #endif
@@ -82,5 +83,5 @@ extern	int	currpid;		/* currently executing process	*/
 #ifndef
 #define ACQUIRED     2
 #endif
-
+*/
 #endif

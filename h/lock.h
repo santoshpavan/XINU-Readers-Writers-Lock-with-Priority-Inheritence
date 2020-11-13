@@ -13,18 +13,20 @@
 #define	LUSED	'u'
 #define LREAD   'r'
 #define LWRITE  'w'
+
 /*
 #define NOT_WAITING  0
 #define WAITING      1
 #define ACQUIRED     2
 */
+
 struct	lentry	{
     char  lstate;    /* the state LFREE or LUSED */
 	int	  lqhead;	 /* q index of head of list	*/
 	int	  lqtail;    /* q index of tail of list	*/
     char  ltype;     /* LREAD or LWRITE */
-    //struct	qent q[];
-    char   proc_types[NPROC]; /* LREAD or LWRITE */
+    char  proc_types[NPROC]; /* LREAD or LWRITE for assigned locks */
+    int   nreaders;  /* number of readers */
 };
 struct	lentry	locktab[];
 int	nextlock;

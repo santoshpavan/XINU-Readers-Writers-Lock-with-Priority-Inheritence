@@ -7,6 +7,9 @@
 #include <stdio.h>
 #include <lock.h>
 
+void processWaitForLock(int, int);
+int getHighestWritePriority(int);
+
 int lock (int ldes, int type, int priority) {
     /*
     sanity checks
@@ -30,8 +33,8 @@ int lock (int ldes, int type, int priority) {
     if (lptr->lstate == LFREE || lptr->lstate == DELETED) {
         lptr->lstate = LUSED;
         lptr->ltype = type;
-        lptr->proc_status[currpid] = ACQUIRED;
-        proctab[currpid].locks_status[ldes] = ACQUIRED;
+        lptr->proc_types[currpid] = type;
+        proctab[currpid].locks[ldes] = type;
         restore(ps);
         return OK;
     }
@@ -77,6 +80,7 @@ int getHighestWritePriority(int lock_ind) {
     while (lind != head) {
         if (locktab[lind].ltype == WRITE && q[lind].qkey > max) {
             max = q[lind].qkey;
+            break;
         }
         lind = q[lind].qprev;
     }

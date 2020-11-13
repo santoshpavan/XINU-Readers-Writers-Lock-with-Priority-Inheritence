@@ -75,7 +75,11 @@ int lock (int ldes, int type, int priority) {
 void processWaitForLock(int lock_ind, int type) {
     struct pentry *pptr = &proctab[currpid];
     pptr->pstate = PRWAIT;
-    pptr->lock_types[lock_ind] = type;
+    // pptr->lock_types[lock_ind] = type;
+    pptr->lockid = lock_ind;
+    // changing the lprio value if required
+    if (pptr->pprio > locktab[lock_ind].lprio)
+        locktab[lock_ind].lprio = pptr->pprio;
     // insert in the queue based on waiting priority
     insert(currpid, locktab[lock_ind].lhead, locktab[lock_ind].ltail);
     pptr->wait_time_start = ctr1000;

@@ -32,6 +32,7 @@ struct	lentry	{
     char  ltype;     /* LREAD or LWRITE */
     char  proc_types[NPROC]; /* LREAD or LWRITE for assigned locks */
     int   nreaders;  /* number of readers */
+    int   lprio; /* max proc prio of all the waiting procs */
 };
 struct	lentry	locktab[];
 int	nextlock;

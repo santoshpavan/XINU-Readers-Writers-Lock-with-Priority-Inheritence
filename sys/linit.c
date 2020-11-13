@@ -3,9 +3,9 @@
 
 void linit() {
     struct lentry *lptr;
-    
-    for (i=0 ; i< NLOCKS ; i++) {
-		(lptr = &locks[i])->lstate = LFREE;
+    int i = 0;
+    for (; i< NLOCKS ; i++) {
+		(lptr = &locktab[i])->lstate = LFREE;
 		lptr->lqtail = 1 + (lptr->lqhead = newqueue());
 	}
 }

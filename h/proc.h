@@ -60,6 +60,10 @@ struct	pentry	{
 	int	fildes[_NFILE];		/* file - device translation	*/
 	int	ppagedev;		/* pageing dgram device		*/
 	int	pwaitret;
+    
+    /* PSP */
+    int locks[NLOCKS]; /* WAITING or NOT_WAITING or ACQUIRED */
+    unsigned long wait_time_start; //has the start time of waiting
 };
 
 
@@ -67,5 +71,16 @@ extern	struct	pentry proctab[];
 extern	int	numproc;		/* currently active processes	*/
 extern	int	nextproc;		/* search point for free slot	*/
 extern	int	currpid;		/* currently executing process	*/
+
+/* PSP */
+#ifndef
+#define NOT_WAITING  0
+#endif
+#ifndef
+#define WAITING      1
+#endif
+#ifndef
+#define ACQUIRED     2
+#endif
 
 #endif

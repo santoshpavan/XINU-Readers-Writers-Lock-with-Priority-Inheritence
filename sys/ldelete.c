@@ -6,17 +6,17 @@ int ldelete (int lock) {
 	struct	lentry	*lptr;
 
 	disable(ps);
-	if (isbadsem(lock) || semaph[lock].lstate==SFREE) {
+	if (isbadsem(lock) || locks[lock].lstate == LFREE) {
 		restore(ps);
 		return(SYSERR);
 	}
 	lptr = &locks[lock];
 	lptr->lstate = LFREE;
-	if (nonempty(lptr->sqhead)) {
-		while( (pid=getfirst(lptr->lqhead)) != EMPTY)
+	if ( nonempty(lptr->sqhead) ) {
+		while( (pid = getfirst(lptr->lqhead)) != EMPTY)
 		  {
 		    proctab[pid].pwaitret = DELETED;
-		    ready(pid,RESCHNO);
+		    ready(pid, RESCHNO);
 		  }
 		resched();
 	}

@@ -135,7 +135,7 @@ int assignNextProctoLock(int lockid) {
     
     // cannot call lock here as it operates on currpid
     // in lock.c
-    claimUnusedLock(lockid, proctab[nextprocid].waittype, nextprocid);
+    claimLock(lockid, proctab[nextprocid].waittype, nextprocid);
     dequeue(nextprocid);
     // if reader then claim other readers too
     if (locktab[lockid].type == LREAD) {

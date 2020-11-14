@@ -9,15 +9,15 @@
 #define NPROC 50
 #endif
 
-#define	LFREE	'f'
-#define	LUSED	'u'
-#define LREAD   'r'
-#define LWRITE  'w'
+#define	LFREE	0
+#define	LUSED	1
+#define LREAD   1
+#define LWRITE  2
 /* 
 LNONE means no mapping for that process and lock
 LNONE => neither LREAD or LWRITE
 */
-#define LNONE   'u'
+#define LNONE   0
 
 /*
 #define NOT_WAITING  0
@@ -26,11 +26,11 @@ LNONE => neither LREAD or LWRITE
 */
 
 struct	lentry	{
-    char  lstate;    /* the state LFREE or LUSED */
+    int  lstate;    /* the state LFREE or LUSED */
 	int	  lqhead;	 /* q index of head of list	*/
 	int	  lqtail;    /* q index of tail of list	*/
-    char  ltype;     /* LREAD or LWRITE */
-    char  proc_types[NPROC]; /* LREAD or LWRITE for assigned locks */
+    int   ltype;     /* LREAD or LWRITE */
+    int  proc_types[NPROC]; /* LREAD or LWRITE for assigned locks */
     int   nreaders;  /* number of readers */
     int   lprio; /* max proc prio of all the waiting procs */
 };
@@ -49,5 +49,6 @@ extern unsigned long ctr1000;
 
 // lock.c
 void assignOtherWaitingReaders(int, int);
+void claimUnusedLock(int ldes, int type, int pid);
 
 #endif

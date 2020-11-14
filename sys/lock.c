@@ -8,8 +8,6 @@
 #include <lock.h>
 
 void processWaitForLock(int, int, int);
-void processWaitForLock(int, int, int);
-void prioInheritence(int , int);
 int getHighestWritePriority(int);
 
 int lock (int ldes, int type, int priority) {
@@ -33,7 +31,7 @@ int lock (int ldes, int type, int priority) {
     struct lentry *lptr = &locktab[ldes];
     
     if (lptr->lstate == LFREE || lptr->lstate == DELETED) {
-        claimUnusedLock(ldes, type, currpid);
+        claimLock(ldes, type, currpid);
         // if no waiting queue
         if (getlast(lptr->ltail) == lhead) {
             restore(ps);
@@ -88,19 +86,19 @@ void processWaitForLock(int lock_ind, int type, int priority) {
     pptr->pstate = PRWAIT;
     pptr->waitlockid = lock_ind;
     pptr->waittype = type;
-    /* Priority Inheritence */
-    // TODO: Not sure how to handle the multiple Read processes condition
-    prioInheritence(lock_ind, priority);
     
     //TODO: use inherited; changing the lprio value if required
     //if (pptr->pprio > locktab[lock_ind].lprio)
     //    locktab[lock_ind].lprio = pptr->pprio;
-    if (pptr->pihn > locktab[lock_ind].lprio)
+    if (pptr->pihn > locktab[lock_ind].lprio) {
         locktab[lock_ind].lprio = pptr->pihn;
+        // TODO: Not sure how to handle the multiple Read processes condition
+        prioInheritence(lock_ind, priority);
+    }
     
     // insert in the queue based on waiting priority
     // TODO: do we need to insert based on pinh?
-    insert(currpid, locktab[lock_ind].lhead, locktab[lock_ind].ltail);
+    insert(currpid, locktab[lock_ind].lhead, pptr->pinh);
     pptr->wait_time_start = ctr1000;
     resched();
 }
@@ -148,24 +146,33 @@ void assignOtherWaitingReaders(int lock_ind) {
             break;
         else{
             // assign this lock to this reader
+            /*
             struct lentry *lptr = &locktab[lock_ind];
             lptr->proc_types[pid] = type;
             proctab[pid].lock_types[lock_ind] = type;
+            */
+            claimLock(lock_ind, LREAD, pid);
             dequeue(pid);
-            lptr->nreaders++;
+            //TODO: this might change the max prio in lock wait triggering prioinheritence
+            //lptr->nreaders++;
         }
         pid = q[pid].qprev;
     }
 }
 
-void claimUnusedLock(int ldes, int type, int pid) {
+void claimLock(int ldes, int type, int pid) {
     struct lentry *lptr = &locktab[ldes];
     lptr->lstate = LUSED;
     lptr->ltype = type;
     lptr->proc_types[pid] = type;
+    
     proctab[pid].lock_types[ldes] = type;
     proctab[pid].wait_start_time = 0;
+    proctab[pid].waitlockid = -1;
     proctab[pid].waittype = LNONE;
+    
     if (type == LWRITE)
         lptr->nreaders = 0; //no readers when writer locked it
+    else if(type == LREAD)
+        lptr->nreaders++;
 }

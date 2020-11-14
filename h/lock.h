@@ -49,6 +49,10 @@ extern unsigned long ctr1000;
 
 // lock.c
 void assignOtherWaitingReaders(int, int);
-void claimUnusedLock(int ldes, int type, int pid);
+void claimLock(int, int, int);
+void prioInheritence(int, int);
+// releaseall.c
+void releaseLock(int, int);
+int getAllMaxWaitingPrio(int);
 
 #endif

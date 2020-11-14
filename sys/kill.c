@@ -8,6 +8,7 @@
 #include <io.h>
 #include <q.h>
 #include <stdio.h>
+#include <lock.h>
 
 /*------------------------------------------------------------------------
  * kill  --  kill a process and remove it from the system
@@ -24,6 +25,34 @@ SYSCALL kill(int pid)
 		restore(ps);
 		return(SYSERR);
 	}
+    
+    /*
+    PSP:
+    remove mapping from locktab and proctab
+    if pid is waiting on a lock, then
+        remove that
+        dequeue it from the lock's wait queue
+        change lprio if required
+        call prioInheritence if required    
+    */
+    int i = 0;
+    for(; i < NLOCKS; i++) {
+        if (pptr->lock_types[i] != LNONE) {
+            releaseLock(i, pid);
+        }
+    }
+    int waitlockid = pptr->waitlockid;
+    if (waitlockid != -1) {
+        // not waiting
+        pptr->waitlockid = -1;
+        dequeue(pid);
+        if (locktab[waitlockid].lprio == pptr->pinh && isSamePrioWaitProcPresent(waitlockid) == 0) {
+            locktab[waitlockid].lprio = getAllMaxWaitingPrio(waitlockid);
+            prioInheritence(waitlockid, locktab[waitlockid].lprio);
+        }
+    }
+    
+    
 	if (--numproc == 0)
 		xdone();
 

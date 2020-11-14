@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <lock.h>
 
-void processWaitForLock(int, int);
+void processWaitForLock(int, int, int);
 int getHighestWritePriority(int);
 
 int lock (int ldes, int type, int priority) {
@@ -54,17 +54,17 @@ int lock (int ldes, int type, int priority) {
             }
             else {
                 // make it wait
-                processWaitForLock(leds, type);
+                processWaitForLock(leds, type, priority);
             }
         }
         else if (type == LWRITE) {
             // wait the process
-            processWaitForLock(ldes, type);
+            processWaitForLock(ldes, type, priority);
         }
     }
     else {
         // if lock is write wait the process
-        processWaitForLock(ldes, type);
+        processWaitForLock(ldes, type, priority);
     }
     
     restore(ps);
@@ -72,18 +72,40 @@ int lock (int ldes, int type, int priority) {
     return (proctab[currpid].pwaitret);
 }
 
-void processWaitForLock(int lock_ind, int type) {
+void processWaitForLock(int lock_ind, int type, int priority) {
     struct pentry *pptr = &proctab[currpid];
     pptr->pstate = PRWAIT;
-    // pptr->lock_types[lock_ind] = type;
-    pptr->lockid = lock_ind;
-    // changing the lprio value if required
+    pptr->waitlockid = lock_ind;
+    
+    /* Priority Inheritence */
+    // TODO: Not sure how to handle the multiple Read processes condition
+    prioInheritence(lock_ind, priority);
+        
+    //TODO: use inherited; changing the lprio value if required
     if (pptr->pprio > locktab[lock_ind].lprio)
         locktab[lock_ind].lprio = pptr->pprio;
+    
     // insert in the queue based on waiting priority
     insert(currpid, locktab[lock_ind].lhead, locktab[lock_ind].ltail);
     pptr->wait_time_start = ctr1000;
     resched();
+}
+
+void prioInheritence(int lockind, int priority) {
+    struct lentry *lptr = &locktab[lockind];
+    int i = 0;
+    for (; i < NPROC; i++) {
+        if (lptr->proc_types[i] != LNONE) {
+            //this proc owns this lock, now
+            if (proctab[i].pinh < priority) {
+                // inherit the prio
+                proctab[i].pinh = priority;
+                // transitive property - cascade the priority inheritence
+                if (proctab[i].waitlockid > 0)
+                    prioInheritence(proctab[i].waitlockid, proctab[i].pinh);
+            }
+        }
+    }
 }
 
 int getHighestWritePriority(int lock_ind) {
@@ -111,5 +133,6 @@ void assignOtherWaitingReaders(int lock_ind, int write_prio) {
             proctab[currpid].lock_types[ldes] = type;
             lptr->nreaders++;
         }
+        lind = q[lind].qprev;
     }
 }

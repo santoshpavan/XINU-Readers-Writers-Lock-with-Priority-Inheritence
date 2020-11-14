@@ -65,7 +65,7 @@ struct	pentry	{
     char lock_types[NLOCKS]; /* LWRITE or LREAD*/
     unsigned long wait_time_start; //has the start time of waiting
     int  pinh; //inherited proc priority
-    int  lockid; //waiting of this lock
+    int  waitlockid; //waiting of this lock
 };
 
 

@@ -74,7 +74,7 @@ SYSCALL create(procaddr,ssize,priority,name,nargs,args)
     }
     pptr->wait_time_start = 0;
     pptr->inh = priority; //TODO: NOT SURE!
-    pptr->lockid = -1;
+    pptr->waitlockid = -1;
 
 	/* Bottom of stack */
 	*saddr = MAGIC;

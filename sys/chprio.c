@@ -23,22 +23,19 @@ SYSCALL chprio(int pid, int newprio)
 		restore(ps);
 		return(SYSERR);
 	}
-	if (newprio > pptr->pprio)
-	{
+	if (newprio > pptr->pprio) {
 		pptr->pinh = newprio;
 	}
-	else
-	{
+	else {
 		pptr->pprio = newprio;
 		pptr->pinh = 0;
 	}
 
-	ld = checkProcessTransitivityForPI(pid);
-	if (ld != -1)
-	{
+	ld = pptr->wait_lockid;
+    if (!isbadlock(ld)) {
 		lptr = &rw_locks[ld];
 		lptr->lprio = getMaxPriorityInLockWQ(ld);
-		rampUpProcPriority(ld,-1);	
+		rampUpProcPriority(ld, -1);	
 	} 
 	restore(ps);
 	return(newprio);

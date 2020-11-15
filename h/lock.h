@@ -29,6 +29,8 @@ extern	struct	lentry	rw_locks[];
 extern	int	nextlock;
 extern unsigned long ctr1000;
 
+void claimUnusedLock(int , int , int , int );
+
 #define	isbadlock(lockid)	(lockid < 0 || lockid >= NLOCKS)
 
 #endif

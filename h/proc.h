@@ -38,9 +38,8 @@
 
 #define	isbadpid(x)	(x<=0 || x>=NPROC)
 
-/* PSP */
 #ifndef NLOCKS
-#define NLOCKS 50
+#define NLOCKS          50      /* number of maximum locks */
 #endif
 
 /* process table entry */
@@ -65,13 +64,14 @@ struct	pentry	{
 	int	fildes[_NFILE];		/* file - device translation	*/
 	int	ppagedev;		/* pageing dgram device		*/
 	int	pwaitret;
-    
-    /* PSP */
-    int lock_types[NLOCKS]; /* WRITE or READ*/
-    unsigned long wait_time_start; //has the start time of waiting
-    int  pinh; //inherited proc priority
-    int  waitlockid; //waiting of this lock
-    int waittype; //waiting type for the above lock
+
+	int 	pinh; 	/* current inherited priority of the process */
+	int	bm_locks[NLOCKS]; /* bit mask of all locks held by the process */
+	int 	wait_lockid;	/* lock descriptor on which process has been blocked */ 
+	unsigned long wait_time; /* waiting time period for which the process has been blocked  */
+	int 	wait_pprio;	/* waiting priority of the process for acquiring lock */
+	int 	wait_ltype; /* lock type requested either READ/WRITE on which process has been blocked */
+	int 	plockret;	 	
 };
 
 
@@ -79,4 +79,5 @@ extern	struct	pentry proctab[];
 extern	int	numproc;		/* currently active processes	*/
 extern	int	nextproc;		/* search point for free slot	*/
 extern	int	currpid;		/* currently executing process	*/
+
 #endif

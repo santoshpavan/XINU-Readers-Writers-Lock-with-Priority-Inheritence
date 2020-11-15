@@ -5,10 +5,6 @@
 
 /* q structure declarations, constants, and inline procedures		*/
 
-#ifndef NLOCKS
-#define NLOCKS 50
-#endif
-
 #ifndef	NQENT
 #define	NQENT		NPROC + NSEM + NSEM + NLOCKS + NLOCKS + 4	/* for ready & sleep	*/
 #endif

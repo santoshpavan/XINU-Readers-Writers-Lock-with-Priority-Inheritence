@@ -15,33 +15,31 @@ SYSCALL chprio(int pid, int newprio)
 {
 	STATWORD ps;    
 	struct	pentry	*pptr;
-
+	struct lentry *lptr;
+	int ld;
 	disable(ps);
 	if (isbadpid(pid) || newprio<=0 ||
 	    (pptr = &proctab[pid])->pstate == PRFREE) {
 		restore(ps);
 		return(SYSERR);
 	}
-    
-    pptr->pinh = newprio;
-	pptr->pprio = newprio;
-	
-    /*
-    PSP:
-    get the lockid of the waiting lock
-    dequeue this proc from the wait and reinsert
-    priority inheritence if the new proc is greater
-    */
-    //struct pentry *pptr = &proctab[pid];
-    int lockid = pptr->waitlockid;
-    struct lentry *lptr = &locktab[lockid];
-    dequeue(pid);
-    insert(pid, lptr->lqhead, pptr->pinh);
-    if (pptr->pinh > lptr->lprio) {
-        lptr->lprio = pptr->pinh;
-        prioInheritence(lockid, pptr->pinh);
-    }
-    
-    restore(ps);
+	if (newprio > pptr->pprio)
+	{
+		pptr->pinh = newprio;
+	}
+	else
+	{
+		pptr->pprio = newprio;
+		pptr->pinh = 0;
+	}
+
+	ld = checkProcessTransitivityForPI(pid);
+	if (ld != -1)
+	{
+		lptr = &rw_locks[ld];
+		lptr->lprio = getMaxPriorityInLockWQ(ld);
+		rampUpProcPriority(ld,-1);	
+	} 
+	restore(ps);
 	return(newprio);
 }

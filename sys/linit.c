@@ -1,24 +1,34 @@
-/* Initialize the Locks */
 #include <conf.h>
 #include <kernel.h>
 #include <proc.h>
 #include <q.h>
-#include <sem.h>
-#include <stdio.h>
 #include <lock.h>
+#include <stdio.h>
 
-void linit() {
-    struct lentry *lptr;
-    int i = 0;
-    for (; i < NLOCKS ; i++) {
-		lptr = &locktab[i];
-        lptr->lstate = LFREE;
+struct  lentry  rw_locks[NLOCKS];
+
+void linit()
+{
+
+	struct  lentry  *lptr;
+	nextlock = NLOCKS-1;
+	
+	int i;
+	int j;
+	
+	for (i=0;i<NLOCKS;i++) /* initialize lock descriptors */
+	{
+		lptr = &rw_locks[i];
+		lptr->lstate = 	LFREE;
 		lptr->lqtail = 1 + (lptr->lqhead = newqueue());
-        //#define   MININT          0x80000000
-        lptr->lprio = MININT;
-        int j = 0;
-        for (; j < NPROC; j++) {
-            lptr->proc_types[j] = LNONE;
-        }
+		lptr->ltype = DELETED;
+		lptr->lprio = -1;
+		
+		/* initialize list maintained for processes holding the lock */
+		for (j=0;j<NPROC;j++)
+		{
+			lptr->lproc_list[j] = 0;
+		}	
 	}
+
 }

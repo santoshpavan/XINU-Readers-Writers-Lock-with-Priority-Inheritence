@@ -1,43 +1,51 @@
-/* creates a lock descriptor */
+
 #include <conf.h>
 #include <kernel.h>
 #include <proc.h>
 #include <q.h>
-#include <sem.h>
-#include <stdio.h>
 #include <lock.h>
+#include <stdio.h>
 
 LOCAL int newlock();
 
-int lcreate () {
-    STATWORD ps;    
-	int	lock = newlock();
+/*------------------------------------------------------------------------
+ * lcreate  --  create and initialize a lock, returning its id
+ *------------------------------------------------------------------------
+ */
+int lcreate()
+{
+	STATWORD ps;    
+	int	ld;
 
 	disable(ps);
-	
-    if ( lock == SYSERR ) {
+	if ((ld=newlock())==SYSERR) {
 		restore(ps);
 		return(SYSERR);
 	}
 	
-    restore(ps);
-	return(lock);
+	/* lqhead and lqtail were initialized at system startup */
+	restore(ps);
+	return(ld);
 }
 
+/*------------------------------------------------------------------------
+ * newlock  --  allocate an unused lock and return its index
+ *------------------------------------------------------------------------
+ */
 LOCAL int newlock()
 {
-	int	lock;
+	int	ld;
 	int	i;
-    
-	for (i = 0 ;i < NLOCKS ;i++) {
-		lock = nextlock--;
-		if (nextlock < 0)
-			nextlock = NLOCKS - 1;
-		if (semaph[lock].sstate == LFREE) {
-			semaph[lock].sstate = LUSED;
-			return(lock);
+
+	for (i=0 ; i<NLOCKS ; i++) {
+		ld=nextlock--;
+		if (ld < 0)
+			nextlock = NLOCKS-1;
+		if (rw_locks[ld].lstate==LFREE) {
+			rw_locks[ld].lstate = LUSED;
+			return(ld);
 		}
 	}
-    
 	return(SYSERR);
 }
+

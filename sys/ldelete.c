@@ -1,28 +1,43 @@
-/* Delete the lock descriptor passed */
 #include <conf.h>
 #include <kernel.h>
 #include <proc.h>
 #include <q.h>
-#include <sem.h>
-#include <stdio.h>
 #include <lock.h>
+#include <stdio.h>
 
-int ldelete (int lock) {
-    STATWORD ps;    
+
+SYSCALL ldelete(int lockdescriptor)
+{
+	STATWORD ps;    
 	int	pid;
-	struct	lentry	*lptr = &locktab[lock];
+	struct	lentry	*lptr;
+	int i;
 
 	disable(ps);
-	if (isbadsem(lock) || lptr->lstate == LFREE) {
+	if (isbadlock(lockdescriptor) || rw_locks[lockdescriptor].lstate==LFREE) {
 		restore(ps);
 		return(SYSERR);
 	}
+	lptr = &rw_locks[lockdescriptor];
 	lptr->lstate = LFREE;
-	if ( nonempty(lptr->lqhead) ) {
-		while( (pid = getfirst(lptr->lqhead)) != EMPTY)
+	lptr->ltype = DELETED;
+	lptr->lprio = -1;
+	/* reset bit mask of process ids currently holding the lock */
+	for (i=0;i<NPROC;i++)
+	{
+		if (lptr->lproc_list[i] == 1)
+		{
+			lptr->lproc_list[i] = 0;
+			proctab[i].bm_locks[lockdescriptor] = 0;
+		}
+	}	
+	
+	if (nonempty(lptr->lqhead)) {
+		while( (pid=getfirst(lptr->lqhead)) != EMPTY)
 		  {
-		    proctab[pid].pwaitret = DELETED;
-		    ready(pid, RESCHNO);
+		    proctab[pid].plockret = DELETED;
+		    proctab[pid].wait_lockid = -1;	
+		    ready(pid,RESCHNO);
 		  }
 		resched();
 	}

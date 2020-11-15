@@ -65,8 +65,9 @@ struct	pentry	{
 	int	ppagedev;		/* pageing dgram device		*/
 	int	pwaitret;
 
+    /* PSP */
 	int 	pinh; 	/* current inherited priority of the process */
-	int	bm_locks[NLOCKS]; /* bit mask of all locks held by the process */
+	int	    bm_locks[NLOCKS]; /* bit mask of all locks held by the process */
 	int 	wait_lockid;	/* lock descriptor on which process has been blocked */ 
 	unsigned long wait_time; /* waiting time period for which the process has been blocked  */
 	int 	wait_pprio;	/* waiting priority of the process for acquiring lock */

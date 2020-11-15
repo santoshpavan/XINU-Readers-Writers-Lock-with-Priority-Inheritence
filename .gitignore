@@ -1,2 +1,6 @@
 *.swp
 compile/*.o
+compile/version
+compile/xinu.elf
+lib
+h/conf.h

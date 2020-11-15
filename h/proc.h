@@ -38,6 +38,11 @@
 
 #define	isbadpid(x)	(x<=0 || x>=NPROC)
 
+/* PSP */
+#ifndef NLOCKS
+#define NLOCKS 50
+#endif
+
 /* process table entry */
 
 struct	pentry	{
@@ -62,7 +67,7 @@ struct	pentry	{
 	int	pwaitret;
     
     /* PSP */
-    int lock_types[NLOCKS]; /* LWRITE or LREAD*/
+    int lock_types[NLOCKS]; /* WRITE or READ*/
     unsigned long wait_time_start; //has the start time of waiting
     int  pinh; //inherited proc priority
     int  waitlockid; //waiting of this lock
@@ -74,17 +79,4 @@ extern	struct	pentry proctab[];
 extern	int	numproc;		/* currently active processes	*/
 extern	int	nextproc;		/* search point for free slot	*/
 extern	int	currpid;		/* currently executing process	*/
-
-/* PSP */
-/*
-#ifndef
-#define NOT_WAITING  0
-#endif
-#ifndef
-#define WAITING      1
-#endif
-#ifndef
-#define ACQUIRED     2
-#endif
-*/
 #endif

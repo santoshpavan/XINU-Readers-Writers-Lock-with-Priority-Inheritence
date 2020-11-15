@@ -1,7 +1,11 @@
 /* Initialize the Locks */
-#include <loch.h>
+#include <conf.h>
 #include <kernel.h>
 #include <proc.h>
+#include <q.h>
+#include <sem.h>
+#include <stdio.h>
+#include <lock.h>
 
 void linit() {
     struct lentry *lptr;

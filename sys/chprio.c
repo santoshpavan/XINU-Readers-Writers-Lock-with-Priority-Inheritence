@@ -5,6 +5,7 @@
 #include <proc.h>
 #include <q.h>
 #include <stdio.h>
+#include <lock.h>
 
 /*------------------------------------------------------------------------
  * chprio  --  change the scheduling priority of a process
@@ -31,11 +32,11 @@ SYSCALL chprio(int pid, int newprio)
     dequeue this proc from the wait and reinsert
     priority inheritence if the new proc is greater
     */
-    struct pentry *pptr = &proctab[pid];
+    //struct pentry *pptr = &proctab[pid];
     int lockid = pptr->waitlockid;
     struct lentry *lptr = &locktab[lockid];
     dequeue(pid);
-    insert(pid, lptr->qhead, pptr->pinh);
+    insert(pid, lptr->lqhead, pptr->pinh);
     if (pptr->pinh > lptr->lprio) {
         lptr->lprio = pptr->pinh;
         prioInheritence(lockid, pptr->pinh);

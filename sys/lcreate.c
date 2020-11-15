@@ -5,6 +5,7 @@
 #include <q.h>
 #include <sem.h>
 #include <stdio.h>
+#include <lock.h>
 
 LOCAL int newlock();
 

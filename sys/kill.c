@@ -14,6 +14,8 @@
  * kill  --  kill a process and remove it from the system
  *------------------------------------------------------------------------
  */
+int isSamePrioWaitProcPresent(int, int); 
+
 SYSCALL kill(int pid)
 {
 	STATWORD ps;    
@@ -43,10 +45,10 @@ SYSCALL kill(int pid)
     }
     int waitlockid = pptr->waitlockid;
     if (waitlockid != -1) {
-        // not waiting
+        // is waiting
         pptr->waitlockid = -1;
         dequeue(pid);
-        if (locktab[waitlockid].lprio == pptr->pinh && isSamePrioWaitProcPresent(waitlockid) == 0) {
+        if (locktab[waitlockid].lprio == pptr->pinh && isSamePrioWaitProcPresent(waitlockid, pptr->pinh) == 1) {
             locktab[waitlockid].lprio = getAllMaxWaitingPrio(waitlockid);
             prioInheritence(waitlockid, locktab[waitlockid].lprio);
         }
@@ -87,4 +89,15 @@ SYSCALL kill(int pid)
 	}
 	restore(ps);
 	return(OK);
+}
+
+int isSamePrioWaitProcPresent(int lockid, int prio) {
+    int pid = firstkey(locktab[lockid].lqhead);
+    int count = 0;
+    while(pid != locktab[lockid].lqtail) {
+        if (proctab[pid].pinh == prio)
+            count++;
+        pid = q[pid].qnext;
+    }
+    return count;
 }

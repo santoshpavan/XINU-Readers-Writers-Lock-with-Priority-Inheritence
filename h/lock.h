@@ -1,18 +1,18 @@
 #ifndef _LOCK_H_
 #define _LOCK_H_
 
-#ifndef
+#ifndef NLOCKS
 #define NLOCKS 50
 #endif
 
-#ifndef
+#ifndef NPROC
 #define NPROC 50
 #endif
 
 #define	LFREE	0
 #define	LUSED	1
-#define LREAD   1
-#define LWRITE  2
+#define READ   1
+#define WRITE  2
 /* 
 LNONE means no mapping for that process and lock
 LNONE => neither LREAD or LWRITE
@@ -48,7 +48,7 @@ int releaseall (int, int,...);
 extern unsigned long ctr1000;
 
 // lock.c
-void assignOtherWaitingReaders(int, int);
+void assignOtherWaitingReaders(int);
 void claimLock(int, int, int);
 void prioInheritence(int, int);
 // releaseall.c

@@ -73,7 +73,7 @@ SYSCALL create(procaddr,ssize,priority,name,nargs,args)
         pptr->lock_types[i] = LNONE;
     }
     pptr->wait_time_start = 0;
-    pptr->inh = priority; //TODO: NOT SURE!
+    pptr->pinh = priority; //TODO: NOT SURE!
     pptr->waitlockid = -1;
 
 	/* Bottom of stack */

@@ -50,7 +50,7 @@ void releaseLock(int lockid, int pid) {
     if none is there, then lock is LFREE
     */
     struct lentry *lptr = &locktab[lockid];
-    if (lptr->ltype == LREAD) {
+    if (lptr->ltype == READ) {
         lptr->nreaders--;
         if (lptr->nreaders == 0) {
             lptr->lstate = LFREE;
@@ -68,7 +68,7 @@ void releaseLock(int lockid, int pid) {
 }
 
 int assignNextProctoLock(int lockid) {
-    struct lenty *lptr = &locktab[lockid];
+    struct lentry *lptr = &locktab[lockid];
     // only free locks should call this - sanity check
     // state changes in the above function
     if (lptr->lstate == LUSED)
@@ -82,13 +82,13 @@ int assignNextProctoLock(int lockid) {
         if not, then lock that proc
     if yes, then find the procid with the max waiting time (within 1000)
     */
-    int lastprocid = getlast(lptr->ltail);
-    int maxwaitprio = q[waitprocid].qkey;
+    int lastprocid = getlast(lptr->lqtail);
+    int maxwaitprio = q[lastprocid].qkey;
     int waitprocid = lastprocid;
     int nextprocid = -1;
     int count = 0;
     
-    while (waitprocid != lptr->lhead && q[waitprocid] == maxwaitprio) {
+    while (waitprocid != lptr->lqhead && q[waitprocid].qkey == maxwaitprio) {
         count++;
         waitprocid = q[waitprocid].qprev;
     }
@@ -121,7 +121,7 @@ int assignNextProctoLock(int lockid) {
             unsigned long waittimediff = timenow - proctab[waitprocid].wait_time_start;
             if (max - waittimediff < 1000 && waitprocid != temp) {
                 // writer is given priority
-                if (proctab[waitprocid].waittype == LWRITE) {
+                if (proctab[waitprocid].waittype == WRITE) {
                     nextprocid = waitprocid;
                     break;
                 }
@@ -138,7 +138,7 @@ int assignNextProctoLock(int lockid) {
     claimLock(lockid, proctab[nextprocid].waittype, nextprocid);
     dequeue(nextprocid);
     // if reader then claim other readers too
-    if (locktab[lockid].type == LREAD) {
+    if (locktab[lockid].ltype == READ) {
         //int highest_writer_prio = getHighestWritePriority(ldes);
         assignOtherWaitingReaders(lockid);
     }

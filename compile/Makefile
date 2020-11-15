@@ -411,7 +411,7 @@ init.o: ../sys/init.c /usr/include/stdc-predef.h ../h/conf.h \
 initialize.o: ../sys/initialize.c /usr/include/stdc-predef.h ../h/conf.h \
  ../h/i386.h ../h/kernel.h ../h/systypes.h ../h/mem.h ../h/mark.h \
  ../h/bufpool.h ../h/proc.h ../h/sem.h ../h/sleep.h ../h/tty.h ../h/q.h \
- ../h/io.h ../h/stdio.h
+ ../h/io.h ../h/stdio.h ../h/lock.h
 insert.o: ../sys/insert.c /usr/include/stdc-predef.h ../h/conf.h \
  ../h/kernel.h ../h/systypes.h ../h/mem.h ../h/q.h
 insertd.o: ../sys/insertd.c /usr/include/stdc-predef.h ../h/conf.h \

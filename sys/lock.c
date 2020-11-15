@@ -29,7 +29,7 @@ int lock (int ldes1, int type, int priority) {
 			processWaitForLock(ldes1, type, priority, currpid);
 			restore(ps);
 			return pptr->plockret;
-		}		
+		}
 				
 		/* current process wants to acquire READ lock */
 		else if (type == READ) {
@@ -41,7 +41,7 @@ int lock (int ldes1, int type, int priority) {
 				next = q[next].qnext;
 				wptr = &proctab[next];
 				if (wptr->wait_ltype == WRITE && q[next].qkey > priority) {
-                    /* block the current process*/
+                    /* found the write block the current process*/
     				processWaitForLock(ldes1, type, priority, currpid);
     				restore(ps);
     				return pptr->plockret;
@@ -49,7 +49,7 @@ int lock (int ldes1, int type, int priority) {
 			}
             claimUnusedLock(ldes1, type, priority, currpid);
             lptr->lprio = getMaxPriorityInLockWQ(ldes1); /* set lprio field to max priority process in wait queue of the lock */
-			rampUpProcPriority (ldes1, -1);
+			rampUpProcPriority (ldes1);
 		}	
 	}
 
@@ -83,7 +83,7 @@ int getMaxPriorityInLockWQ (int ld) {
 	return maxprio;				
 }
 
-void rampUpProcPriority (int ld, int priority) {
+void rampUpProcPriority (int ld) {
 	struct lentry *lptr = &rw_locks[ld];
 	int gprio = -1;
 	int maxprio = -1;
@@ -95,7 +95,6 @@ void rampUpProcPriority (int ld, int priority) {
 
 			/* priority will be -1 when called this func for priority inheritance but when called during lock func it will be */
 			/* priority of process currently blocked in lock func */
-			if (priority == -1) {
 				maxprio = getMaxWaitProcPrioForPI(i);
 				
 				if (maxprio > pptr->pprio)
@@ -105,16 +104,7 @@ void rampUpProcPriority (int ld, int priority) {
 				
                 int waitlockid = pptr->wait_lockid;
 				if (!isbadlock(waitlockid))
-					rampUpProcPriority (waitlockid,-1);
-			}
-
-			/* ramp up the priority of pptr upto priority passed */
-			else if (getProcessPriority(pptr) < priority) {
-				pptr->pinh = priority;
-                int waitlockid = pptr->wait_lockid;
-				if (!isbadlock(waitlockid))
-					rampUpProcPriority (waitlockid,-1);
-			}
+					rampUpProcPriority (waitlockid);
 		}
 	}
 }
@@ -140,6 +130,23 @@ int getProcessPriority(struct pentry *pptr) {
     return (pptr->pinh == 0) ? pptr->pprio : pptr->pinh;
 }
 
+void priorityInheritence(int ld, int priority) {
+  	struct lentry *lptr = &rw_locks[ld];    
+	int i = 0;
+	for (; i < NPROC; i++) {
+		if (lptr->lproc_list[i] == 1) {
+			struct pentry *pptr = &proctab[i];
+			/* ramp up the priority of pptr upto priority passed */
+			if (getProcessPriority(pptr) < priority) {
+				pptr->pinh = priority;
+                int waitlockid = pptr->wait_lockid;
+				if (!isbadlock(waitlockid))
+					rampUpProcPriority (waitlockid);
+			}
+		}
+	}
+}
+
 void processWaitForLock(int ldes1, int type, int priority, int pid) {
     /* block the current process as WRITE lock is exclusive */
     struct pentry *pptr = &proctab[pid];
@@ -153,7 +160,9 @@ void processWaitForLock(int ldes1, int type, int priority, int pid) {
 
 	insert(currpid, lptr->lqhead, priority); /* insert the proc in wait queue of lock descriptor based on its wait priority */
 	lptr->lprio = getMaxPriorityInLockWQ(ldes1); /* set lprio field to max priority process in wait queue of the lock */
-	rampUpProcPriority(ldes1,getProcessPriority(pptr));
+	//rampUpProcPriority(ldes1,getProcessPriority(pptr));
+    // priority inheritence
+    priorityInheritence(ldes1, getProcessPriority(pptr));
 
 	pptr->plockret = OK;
 	resched();

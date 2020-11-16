@@ -26,6 +26,7 @@ extern	int	nextqueue;
 #define	firstkey(list)	(q[q[(list)].qnext].qkey)
 #define lastkey(tail)	(q[q[(tail)].qprev].qkey)
 #define firstid(list)	(q[(list)].qnext)
+#define lastid(list)    (q[(list)].qprev)
 
 /* gpq constants */
 

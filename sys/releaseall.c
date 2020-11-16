@@ -5,65 +5,52 @@
 #include <lock.h>
 #include <stdio.h>
 
-int releaseall (int numlocks, long lks,...)
-{
-
+int releaseall (int numlocks, long locks,...) {
 	STATWORD ps;
-	struct lentry *lptr;
-	struct pentry *pptr;
-	disable(ps);
-	
-	int i;
+    disable(ps);
+    
+	struct pentry *pptr = &proctab[currpid];
 	int ld;
-        unsigned long *a; 
-	int flag = 0;
-	pptr = &proctab[currpid];
-	
-	a = (unsigned long *)(&lks);
-	for (i=0;i<numlocks;i++)
-	{
-		ld = *a++;
 
-		//kprintf("%d",ld);
+    int i = 0;
+	while (i < numlocks) {
+        ld = (int *)(&locks) + i;
 		/* check if lock descriptor passed is valid or not and is held by the calling process */
-		if (isbadlock(ld)) 
-		{
-               		flag = 1;	   	
-       		}
+		if (isbadlock(ld))
+            return SYSERR;
+            
+		if (rw_locks[ld].lproc_list[currpid] == 1)
+			releaseLDForProc(currpid, ld);
 		else
-		{
-			lptr = &rw_locks[ld];
-			if (lptr->lproc_list[currpid] == 1)
-			{
-				releaseLDForProc(currpid, ld);					
-			}
-			else
-			{
-				flag = 1;
-			} 
-		}		
+			return SYSERR;		
 	}
-
 	resched();
 
 	restore(ps);
-	return flag == 0 ? OK : SYSERR;	
+	return OK;	
 }
 
-void releaseLDForProc(int pid, int ld)
-{
-	
-	struct lentry *lptr;
-	struct pentry *pptr;
-	struct pentry *nptr;
+void removeWaitingProcess(int pid, int ld, int type) {
+    dequeue(pid);
+	struct pentry *nptr = &proctab[pid];
+	nptr->bm_locks[ld] = 1;
+	struct lentry *lptr = &rw_locks[ld];
+ 	lptr->ltype = type;
+	lptr->lproc_list[pid] = 1;
+	nptr->wait_time = 0;
+	nptr->wait_lockid = -1;
+	nptr->wait_ltype = -1;
+	ready(pid, RESCHNO);
+}
+
+
+void releaseLDForProc(int pid, int ld) {
+	struct lentry *lptr = &rw_locks[ld];
+	struct pentry *pptr = &proctab[pid];
 	struct pentry *wptr;
 	
 	int oltype = lptr->ltype;
 	int maxprio = -1;
-	int i=0;
-
-	lptr = &rw_locks[ld];
-	pptr = &proctab[pid];
 
 	/* set ltype deleted temporarily */
 	lptr->ltype = DELETED;
@@ -74,162 +61,68 @@ void releaseLDForProc(int pid, int ld)
 	pptr->wait_lockid = -1;
 	pptr->wait_ltype = -1;
 
-	if (nonempty(lptr->lqhead))
-	{
-		int prev = lptr->lqtail;
+	if (nonempty(lptr->lqhead)) {
 		int writerProcExist = 0;
 		int readerProcHoldingLock = 0;
 		int wpid = 0;
 		struct qent *mptr;
-		unsigned long tdf = 0;	
-		maxprio = q[q[prev].qprev].qkey;
-		
-		/* check writer proc exist in queue  */
-		while (q[prev].qprev != lptr->lqhead)
-		{
-			prev = q[prev].qprev;
+		unsigned long tdf = 0;
+        maxprio = lastkey(lptr->lqtail);                                
+		int prev = lastid(lptr->lqtail);
+
+        /* check writer proc exist in queue  */
+		while (prev != lptr->lqhead) {
 			wptr = &proctab[prev];
-			if (wptr->wait_ltype == WRITE)
-			{
+			if (wptr->wait_ltype == WRITE) {
 				writerProcExist = 1;
 				wpid = prev;
 				mptr = &q[wpid];
 				break;		
-			}	
+			}
+			prev = q[prev].qprev;
 		}
 		
-		if (writerProcExist == 0)
-		{
-			prev = lptr->lqtail;
-			
-			while (q[prev].qprev != lptr->lqhead && q[prev].qprev < NPROC && q[prev].qprev > 0)
-			{	
-				prev = q[prev].qprev;
-				dequeue(prev);
-
-				nptr = &proctab[prev];
-				nptr->bm_locks[ld] = 1;
-
- 				lptr->ltype = READ;
-				lptr->lproc_list[prev] = 1;
-				nptr->wait_time = 0;
-				nptr->wait_lockid = -1;
-				nptr->wait_ltype = -1;
-
-				ready(prev, RESCHNO);
+		if (writerProcExist == 0) {
+			prev = lastid(lptr->lqtail);
+			while (!isbadpid(prev) && prev != lptr->lqhead) {
+                removeWaitingProcess(prev, ld, READ);
+            	prev = q[prev].qprev;
 			}	
 		}
-		else if (writerProcExist == 1)
-		{
-			prev = lptr->lqtail;
-			if (mptr->qkey == maxprio)
-			{
+		else if (writerProcExist == 1) {
+			prev = lastid(lptr->lqtail);
+			if (mptr->qkey == maxprio) {
 				tdf = proctab[q[prev].qprev].wait_time - wptr->wait_time;
 				if (tdf < 0)
-				{
-					tdf = (-1)*tdf; /* make time difference positive */
-				}
-				if (tdf < 1000) /* within 1 s */
-				{
-					for (i = 0;i < NPROC;i++)
-					{
-						if (lptr->lproc_list[i] == 1)
-						{
+					tdf = -tdf; /* make time difference positive */
+				if (tdf < 1000) {
+	                int i = 0;
+					for (; i < NPROC; i++) {
+						if (lptr->lproc_list[i] == 1) {
 							readerProcHoldingLock = 1;
 							break;
 						}
 					}
-					if (readerProcHoldingLock == 0)
-					{
-					
-						dequeue(wpid);
-	
-						nptr = &proctab[wpid];
-						nptr->bm_locks[ld] = 1;
-	
- 						lptr->ltype = WRITE;
-						lptr->lproc_list[wpid] = 1;
-						nptr->wait_time = 0;
-						nptr->wait_lockid = -1;
-						nptr->wait_ltype = -1;
-
-						ready(wpid, RESCHNO);
+					if (readerProcHoldingLock == 0) {
+                        removeWaitingProcess(wpid, ld, WRITE);
 					}
 				}
-				else
-				{
-					prev = lptr->lqtail;
-					while (q[prev].qprev != wpid)
-					{
+				else {
+					prev = lastid(lptr->lqtail);
+					while (prev != wpid) {
+                        removeWaitingProcess(prev, ld, READ);
 						prev = q[prev].qprev;
-						dequeue(prev);
-
-						nptr = &proctab[prev];
-						nptr->bm_locks[ld] = 1;
-
- 						lptr->ltype = READ;
-						lptr->lproc_list[prev] = 1;
-						nptr->wait_time = 0;
-						nptr->wait_lockid = -1;
-						nptr->wait_ltype = -1;
-
-						ready(prev, RESCHNO);
 					}				
 				}
 			}
-			else
-			{
-				prev = lptr->lqtail;
-				while (q[prev].qprev != wpid)
-				{
-					prev = q[prev].qprev;
-					dequeue(prev);
-
-					nptr = &proctab[prev];
-					nptr->bm_locks[ld] = 1;
-
- 					lptr->ltype = READ;
-					lptr->lproc_list[prev] = 1;
-					nptr->wait_time = 0;
-					nptr->wait_lockid = -1;
-					nptr->wait_ltype = -1;
-
-					ready(prev, RESCHNO);
-				}
-			}
 		}
-				
 	}
-		
+
 	lptr->lprio = getMaxPriorityInLockWQ(ld);
 	maxprio = getMaxWaitProcPrioForPI(pid);
 	
 	if (maxprio > pptr->pprio)
-	{
 		pptr->pinh = maxprio;
-	}
 	else
-	{
-		pptr->pinh = 0; /* as maxprio is either equal or less than original priority of pptr process */
-	}
-	
-			
-}
-
-void releaseLDForWaitProc(pid, ld)
-{
-	struct lentry *lptr;
-	struct pentry *pptr;
-	
-	lptr = &rw_locks[ld];
-	pptr = &proctab[pid];
-
-	dequeue(pid);
-	pptr->wait_lockid = -1;
-	pptr->wait_ltype = -1;
-	pptr->wait_time = 0;
-	pptr->plockret = DELETED;
-
-	lptr->lprio = getMaxPriorityInLockWQ(ld);	
-	rampUpProcPriority(ld,-1);
+		pptr->pinh = 0; /* as maxprio is either equal or less than original priority of pptr process */	
 }

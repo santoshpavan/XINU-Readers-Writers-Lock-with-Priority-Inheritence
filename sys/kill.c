@@ -84,3 +84,18 @@ SYSCALL kill(int pid)
 	restore(ps);
 	return(OK);
 }
+
+void releaseLDForWaitProc(pid, ld) {
+	struct lentry *lptr = &rw_locks[ld];
+	struct pentry *pptr = &proctab[pid];
+
+	dequeue(pid);
+	pptr->wait_lockid = -1;
+	pptr->wait_ltype = -1;
+	pptr->wait_time = 0;
+	pptr->plockret = DELETED;
+
+	lptr->lprio = getMaxPriorityInLockWQ(ld);	
+	rampUpProcPriority(ld);
+}
+

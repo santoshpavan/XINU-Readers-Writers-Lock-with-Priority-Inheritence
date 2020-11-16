@@ -29,7 +29,8 @@ extern	struct	lentry	rw_locks[];
 extern	int	nextlock;
 extern unsigned long ctr1000;
 
-void claimUnusedLock(int , int , int , int );
+extern void claimUnusedLock(int , int , int , int );
+extern int getProcessPriority(int);
 
 #define	isbadlock(lockid)	(lockid < 0 || lockid >= NLOCKS)
 

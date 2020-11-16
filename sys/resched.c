@@ -17,13 +17,12 @@ extern int ctxsw(int, int, int, int);
  */
 int resched()
 {
-	register struct	pentry	*optr;	/* pointer to old process entry */
+	register struct	pentry	*optr = &proctab[currpid];	/* pointer to old process entry */
 	register struct	pentry	*nptr;	/* pointer to new process entry */
 
 	/* no switch needed if current process priority higher than next*/
 
-	if ( ( (optr= &proctab[currpid])->pstate == PRCURR) &&
-	   (lastkey(rdytail)<getProcessPriority(optr))) {
+	if ((optr->pstate == PRCURR) && (lastkey(rdytail) < getProcessPriority(currpid))) {
 		return(OK);
 	}
 	
@@ -31,7 +30,7 @@ int resched()
 
 	if (optr->pstate == PRCURR) {
 		optr->pstate = PRREADY;
-		insert(currpid,rdyhead,getProcessPriority(optr));
+		insert(currpid, rdyhead, getProcessPriority(currpid));
 	}
 
 	/* remove highest priority process at end of ready list */

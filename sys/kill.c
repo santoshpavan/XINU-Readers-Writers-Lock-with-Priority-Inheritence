@@ -93,7 +93,7 @@ void releaseLDForWaitProc(pid, ld) {
 	pptr->wait_ltype = -1;
 	pptr->wait_time = 0;
 	pptr->plockret = DELETED;
-	lptr->lprio = getMaxPriorityInLockWQ(ld);	
+	lptr->lprio = getMaxPrioWaitingProcs(ld);	
 	cascadingRampUpPriorities(ld);
 }
 

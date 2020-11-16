@@ -17,6 +17,9 @@
 #define READ     0
 #define WRITE    1
 
+#define ACQUIRED  1
+#define UNACQUIRED  0
+
 struct	lentry	{		/* lock table entry			*/
 	char	lstate;		/* the state LFREE or LUSED		*/
 	int	    lqhead;		/* q index of head of list		*/
@@ -25,13 +28,15 @@ struct	lentry	{		/* lock table entry			*/
 	int	    lprio;		/* maximum priority among lock's wait queue */
 	int 	lproc_list[NPROC]; /* bit mask of process ids currently holding the lock  */
 };
-extern	struct	lentry	rw_locks[];
-extern	int	nextlock;
+extern struct lentry rw_locks[];
+extern int nextlock;
 
+// lock.c
 extern void claimUnusedLock(int , int , int , int );
 extern int getProcessPriority(int);
 extern void cascadingRampUpPriorities(int);
-
+extern int getMaxPrioWaitingProcs(int);
+extern int getMaxWaitingProcPrio(int);
 
 extern unsigned long ctr1000;
 

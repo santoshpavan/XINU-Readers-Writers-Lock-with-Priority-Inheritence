@@ -5,14 +5,15 @@
 #include <lock.h>
 #include <stdio.h>
 
-int getMaxPriorityInLockWQ(int);
+int getMaxPrioWaitingProcs(int);
 void cascadingRampUpPriorities(int);
 int getProcessPriority(int);
 void priorityInheritence(int, int);
 void processWaitForLock(int, int, int, int);
 void claimUnusedLock(int, int, int, int);
+int getMaxWaitingProcPrio(int);
 
-int lock(int ldes1, int type, int priority) {
+int lock(int lockid, int type, int priority) {
     /*
     sanity checks
     if this is the first one, then take it
@@ -22,60 +23,59 @@ int lock(int ldes1, int type, int priority) {
       else wait
     if write has it then wait
     */
-    
 	STATWORD ps;
 	disable(ps);
 	
-	struct lentry *lptr = &rw_locks[ldes1];
+	struct lentry *lptr = &rw_locks[lockid];
 	struct pentry *pptr = &proctab[currpid];        
 	
-    if (isbadlock(ldes1) || lptr->lstate == LFREE) {
+    if (isbadlock(lockid) || lptr->lstate == LFREE) {
 		restore(ps);
 		return(SYSERR);
 	}
 
     // DELETED implies available space
-	if (lptr->ltype == DELETED) {
-		claimUnusedLock(ldes1, type, priority, currpid);
-	}
-	else if (lptr->ltype == READ) {
-		if (type == WRITE) {
-			processWaitForLock(ldes1, type, priority, currpid);
-			restore(ps);
-			return pptr->plockret;
-		}
-		else if (type == READ) {
+	if (lptr->ltype == DELETED)
+		claimUnusedLock(lockid, type, priority, currpid);
+	
+    else if (lptr->ltype == READ) {
+		if (type == READ) {
             // collecting all the readers from tail till write
 			int next = firstid(lptr->lqhead);
 			while (next != lptr->lqtail) {
 				struct pentry *wptr = &proctab[next];
 				if (wptr->wait_ltype == WRITE && q[next].qkey > priority) {
-    				processWaitForLock(ldes1, type, priority, currpid);
+    				processWaitForLock(lockid, type, priority, currpid);
     				restore(ps);
     				return pptr->plockret;
 				}
                 next = q[next].qnext;
 			}
-            claimUnusedLock(ldes1, type, priority, currpid);
+            claimUnusedLock(lockid, type, priority, currpid);
             // changing the priority
-            lptr->lprio = getMaxPriorityInLockWQ(ldes1);
+            lptr->lprio = getMaxPrioWaitingProcs(lockid);
             // cascading the changed priority
-			cascadingRampUpPriorities (ldes1);
-		}	
+			cascadingRampUpPriorities(lockid);
+        	restore(ps);
+        	return OK;
+		}
+        else {
+            // if write then cannot claim
+			processWaitForLock(lockid, type, priority, currpid);
+			restore(ps);
+			return pptr->plockret;
+		}
 	}
 	else {
         // if write then cannot claim
-		processWaitForLock(ldes1, type, priority, currpid);
+		processWaitForLock(lockid, type, priority, currpid);
 		restore(ps);
 		return pptr->plockret;
 	}
-	
-	restore(ps);
-	return(OK); 
 }
 
-int getMaxPriorityInLockWQ(int ld) {
-	struct lentry *lptr = &rw_locks[ld];
+int getMaxPrioWaitingProcs(int lockid) {
+	struct lentry *lptr = &rw_locks[lockid];
 	int maxprio = -1;
 	int next = firstid(lptr->lqhead);
     while (next != lptr->lqtail) {
@@ -88,36 +88,36 @@ int getMaxPriorityInLockWQ(int ld) {
 	return maxprio;				
 }
 
-void cascadingRampUpPriorities(int ld) {
+void cascadingRampUpPriorities(int lockid) {
     // for cascading inheritence
-	struct lentry *lptr = &rw_locks[ld];
+	struct lentry *lptr = &rw_locks[lockid];
 	int i = 0;
 	for (; i < NPROC; i++) {
-		if (lptr->lproc_list[i] == 1) {
+		if (lptr->lproc_list[i] == ACQUIRED) {
 			struct pentry *pptr = &proctab[i];
-			int maxprio = getMaxWaitProcPrioForPI(i);
+			int maxprio = getMaxWaitingProcPrio(i);
 			if (maxprio > pptr->pprio)
 				pptr->pinh = maxprio;
+            // maxprio is <= than original priority of pptr process
 			else
-				pptr->pinh = 0; /* as maxprio is either equal or less than original priority of pptr process */
-            int waitlockid = pptr->wait_lockid;
-			if (!isbadlock(waitlockid))
-				cascadingRampUpPriorities(waitlockid);
+				pptr->pinh = 0;
+			if (!isbadlock(pptr->wait_lockid))
+				cascadingRampUpPriorities(pptr->wait_lockid);
 		}
 	}
 }
 
-int getMaxWaitProcPrioForPI(int pid) {
+int getMaxWaitingProcPrio(int pid) {
 	struct pentry *pptr = &proctab[pid];
 	int maxprio = -1;
     int i = 0;
 	for (; i < NLOCKS; i++) {
-		if (pptr->bm_locks[i] == 1)  {
+		if (pptr->bm_locks[i] == ACQUIRED) {
 			struct lentry *lptr = &rw_locks[i];
 			if (maxprio < lptr->lprio)
 				maxprio = lptr->lprio;
-		}		
-	}	
+		}
+	}
 	return maxprio;
 }
 
@@ -125,11 +125,11 @@ int getProcessPriority(int pid) {
     return (proctab[pid].pinh == 0) ? proctab[pid].pprio : proctab[pid].pinh;
 }
 
-void priorityInheritence(int ld, int priority) {
-  	struct lentry *lptr = &rw_locks[ld];    
+void priorityInheritence(int lockid, int priority) {
+  	struct lentry *lptr = &rw_locks[lockid];    
 	int i = 0;
 	for (; i < NPROC; i++) {
-		if (lptr->lproc_list[i] == 1) {
+		if (lptr->lproc_list[i] == ACQUIRED) {
 			struct pentry *pptr = &proctab[i];
 			if (getProcessPriority(i) < priority) {
 				pptr->pinh = priority;
@@ -142,29 +142,29 @@ void priorityInheritence(int ld, int priority) {
 	}
 }
 
-void processWaitForLock(int ldes1, int type, int priority, int pid) {
+void processWaitForLock(int lockid, int type, int priority, int pid) {
     struct pentry *pptr = &proctab[pid];
-    struct lentry *lptr = &rw_locks[ldes1];
+    struct lentry *lptr = &rw_locks[lockid];
 	pptr->pstate = PRWAIT;
-	pptr->wait_lockid = ldes1;
+	pptr->wait_lockid = lockid;
 	pptr->wait_time = ctr1000;
 	pptr->wait_pprio = priority;
 	pptr->wait_ltype = type;
 	insert(currpid, lptr->lqhead, priority);
-	lptr->lprio = getMaxPriorityInLockWQ(ldes1);
+	lptr->lprio = getMaxPrioWaitingProcs(lockid);
     // priority inheritence
-    priorityInheritence(ldes1, getProcessPriority(pid));
+    priorityInheritence(lockid, getProcessPriority(pid));
 	pptr->plockret = OK;
 	resched();
 }
 
-void claimUnusedLock(int ldes1, int type, int priority, int pid) {
+void claimUnusedLock(int lockid, int type, int priority, int pid) {
     struct pentry *pptr = &proctab[pid];
-    struct lentry *lptr = &rw_locks[ldes1];
+    struct lentry *lptr = &rw_locks[lockid];
     lptr->ltype = type;
     lptr->lprio = -1;
-	lptr->lproc_list[currpid] = 1;
-	pptr->bm_locks[ldes1] = 1;
+	lptr->lproc_list[currpid] = ACQUIRED;
+	pptr->bm_locks[lockid] = ACQUIRED;
 	pptr->wait_lockid = -1;
     pptr->wait_pprio = priority;
 	pptr->wait_ltype = -1;

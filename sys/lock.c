@@ -6,7 +6,7 @@
 #include <stdio.h>
 
 int getMaxPriorityInLockWQ(int);
-void rampUpProcPriority(int);
+void cascadingRampUpPriorities(int);
 int getProcessPriority(int);
 void priorityInheritence(int, int);
 void processWaitForLock(int, int, int, int);
@@ -60,11 +60,11 @@ int lock(int ldes1, int type, int priority) {
             // changing the priority
             lptr->lprio = getMaxPriorityInLockWQ(ldes1);
             // cascading the changed priority
-			rampUpProcPriority (ldes1);
+			cascadingRampUpPriorities (ldes1);
 		}	
 	}
-
-	else if (lptr->ltype == WRITE) {
+	else {
+        // if write then cannot claim
 		processWaitForLock(ldes1, type, priority, currpid);
 		restore(ps);
 		return pptr->plockret;
@@ -88,7 +88,7 @@ int getMaxPriorityInLockWQ(int ld) {
 	return maxprio;				
 }
 
-void rampUpProcPriority(int ld) {
+void cascadingRampUpPriorities(int ld) {
     // for cascading inheritence
 	struct lentry *lptr = &rw_locks[ld];
 	int i = 0;
@@ -102,7 +102,7 @@ void rampUpProcPriority(int ld) {
 				pptr->pinh = 0; /* as maxprio is either equal or less than original priority of pptr process */
             int waitlockid = pptr->wait_lockid;
 			if (!isbadlock(waitlockid))
-				rampUpProcPriority (waitlockid);
+				cascadingRampUpPriorities(waitlockid);
 		}
 	}
 }
@@ -136,7 +136,7 @@ void priorityInheritence(int ld, int priority) {
                 int waitlockid = pptr->wait_lockid;
                 // cascade the inheritence if required
 				if (!isbadlock(waitlockid))
-					rampUpProcPriority (waitlockid);
+					cascadingRampUpPriorities(waitlockid);
 			}
 		}
 	}

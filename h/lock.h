@@ -2,57 +2,42 @@
 #define _LOCK_H_
 
 #ifndef NLOCKS
-#define NLOCKS 50
+#define	NLOCKS		50	/* number of maximum locks */
 #endif
 
-#ifndef NPROC
-#define NPROC 50
-#endif
+#define	LFREE	0		/* this lock is free		*/
+#define	LUSED	1		/* this lock is used		*/
 
-#define	LFREE	0
-#define	LUSED	1
-#define READ   1
-#define WRITE  2
-/* 
-LNONE means no mapping for that process and lock
-LNONE => neither LREAD or LWRITE
-*/
-#define LNONE   0
+#define READ     0
+#define WRITE    1
 
-/*
-#define NOT_WAITING  0
-#define WAITING      1
-#define ACQUIRED     2
-*/
+#define ACQUIRED  1
+#define UNACQUIRED  0
 
 struct	lentry	{
-    int  lstate;    /* the state LFREE or LUSED */
-	int	  lqhead;	 /* q index of head of list	*/
-	int	  lqtail;    /* q index of tail of list	*/
-    int   ltype;     /* LREAD or LWRITE */
-    int  proc_types[NPROC]; /* LREAD or LWRITE for assigned locks */
-    int   nreaders;  /* number of readers */
-    int   lprio; /* max proc prio of all the waiting procs */
+    int	 lstate;		/* LFREE or LUSED */
+	int	 lqhead;
+	int	 lqtail;
+	int	 ltype;		/* READ or WRITE */
+	int	 lprio;		/* max proc priority in waiting queue */
+	int  procs_hold_list[NPROC]; /* procs holding this lock */
+    int  nreaders;
 };
-struct	lentry	locktab[];
-int	nextlock;
+struct lentry locktab[NLOCKS];
+int nextlock;
 
-#define	isbadlock(lock_id)	(lock_id < 0 || lock_id >= NLOCKS)
-
-int lcreate (void);
-int ldelete (int);
-int lock (int, int , int);
-int releaseall (int, int,...);
-
-// clkinit.c
-extern unsigned long ctr1000;
+int lock(int, int, int);
+int releaseall(int, int,...);
 
 // lock.c
-void assignOtherWaitingReaders(int);
-void claimLock(int, int, int);
-void prioInheritence(int, int);
-// releaseall.c
-void releaseLock(int, int);
-int getAllMaxWaitingPrio(int);
+extern void claimUnusedLock(int , int , int);
+extern int getNewProcPrio(int);
+extern void cascadingRampUpPriorities(int);
+extern int getMaxPrioWaitingProcs(int);
+extern int getMaxAcquiredProcPrio(int);
+
+extern unsigned long ctr1000;
+
+#define	isbadlockid(lockid)	(lockid < 0 || lockid >= NLOCKS)
 
 #endif

@@ -3,14 +3,18 @@
 #include <kernel.h>
 #include <proc.h>
 #include <q.h>
-#include <sem.h>
-#include <stdio.h>
 #include <lock.h>
+#include <stdio.h>
 
-void processWaitForLock(int, int, int);
-int getHighestWritePriority(int);
+int getMaxPrioWaitingProcs(int);
+void cascadingRampUpPriorities(int);
+int getNewProcPrio(int);
+void priorityInheritence(int, int);
+void processWaitForLock(int, int, int, int);
+void claimUnusedLock(int, int, int);
+int getMaxAcquiredProcPrio(int);
 
-int lock (int ldes, int type, int priority) {
+int lock(int lockid, int type, int priority) {
     /*
     sanity checks
     if this is the first one, then take it
@@ -20,162 +24,152 @@ int lock (int ldes, int type, int priority) {
       else wait
     if write has it then wait
     */
-    STATWORD ps;
-    disable(ps);
-    
-    if (isbadlock(ldes)) {
-        restore(ps);
-        return SYSERR;
-    }
-    
-    struct lentry *lptr = &locktab[ldes];
-    
-    if (lptr->lstate == LFREE || lptr->lstate == DELETED) {
-        claimLock(ldes, type, currpid);
-        // if no waiting queue
-        if (getlast(lptr->lqtail) == lptr->lqhead) {
-            restore(ps);
-            return OK;
-        }
-        else if (type == READ) {
-            // just to make sure. Mostly won't be used
-            int highest_writer_prio = getHighestWritePriority(ldes);
-            if (highest_writer_prio <= priority) {
-                // give lock to this proc
-                lptr->proc_types[currpid] = type;
-                proctab[currpid].lock_types[ldes] = type;
-                lptr->nreaders++;
-                // assign all readers with greater priority than highest writer priority
-                //assignOtherWaitingReaders(ldes, highest_writer_prio);
-                assignOtherWaitingReaders(ldes);
-            }
-        }
-    }
-    // not free
-    if (lptr->ltype == READ) {
-        if (type == READ) {
-            int highest_writer_prio = getHighestWritePriority(ldes);
-            if (highest_writer_prio <= priority) {
-                // give lock to this proc
-                lptr->proc_types[currpid] = type;
-                proctab[currpid].lock_types[ldes] = type;
-                lptr->nreaders++;
-                // assign all readers with greater priority than highest writer priority
-                //assignOtherWaitingReaders(ldes, highest_writer_prio);
-                assignOtherWaitingReaders(ldes);
-            }
-            else {
-                // make it wait
-                processWaitForLock(ldes, type, priority);
-            }
-        }
-        else if (type == WRITE) {
-            // wait the process
-            processWaitForLock(ldes, type, priority);
-        }
-    }
-    else {
-        // if lock is write wait the process
-        processWaitForLock(ldes, type, priority);
-    }
-    
-    restore(ps);
-    //NOT SURE IF I SHOULD RETURN THIS!
-    return (proctab[currpid].pwaitret);
+	STATWORD ps;
+	disable(ps);
+	
+	struct lentry *lptr = &locktab[lockid];
+	struct pentry *pptr = &proctab[currpid];        
+	
+    if (isbadlockid(lockid) || lptr->lstate == LFREE) {
+		restore(ps);
+		return(SYSERR);
+	}
+
+    // DELETED implies available space
+	if (lptr->ltype == DELETED)
+		claimUnusedLock(lockid, type, currpid);
+    else if (lptr->ltype == READ) {
+		if (type == READ) {
+            // collecting all the readers from tail till write
+			int procid = firstid(lptr->lqhead);
+			while (procid != lptr->lqtail) {
+				struct pentry *wptr = &proctab[procid];
+				if (wptr->waittype == WRITE && q[procid].qkey > priority) {
+    				processWaitForLock(lockid, type, priority, currpid);
+    				restore(ps);
+    				return pptr->lockreturn;
+				}
+                procid = q[procid].qnext;
+			}
+            claimUnusedLock(lockid, type, currpid);
+            // changing the priority
+            lptr->lprio = getMaxPrioWaitingProcs(lockid);
+            // cascading the changed priority
+			cascadingRampUpPriorities(lockid);
+        	restore(ps);
+        	return OK;
+		}
+        else {
+            // if write then cannot claim
+			processWaitForLock(lockid, type, priority, currpid);
+			restore(ps);
+			return pptr->lockreturn;
+		}
+	}
+	else {
+        // if write then cannot claim
+		processWaitForLock(lockid, type, priority, currpid);
+		restore(ps);
+		return pptr->lockreturn;
+	}
 }
 
-void processWaitForLock(int lock_ind, int type, int priority) {
-    struct pentry *pptr = &proctab[currpid];
-    pptr->pstate = PRWAIT;
-    pptr->waitlockid = lock_ind;
-    pptr->waittype = type;
-    
-    //TODO: use inherited; changing the lprio value if required
-    //if (pptr->pprio > locktab[lock_ind].lprio)
-    //    locktab[lock_ind].lprio = pptr->pprio;
-    if (pptr->pinh > locktab[lock_ind].lprio) {
-        locktab[lock_ind].lprio = pptr->pinh;
-        // TODO: Not sure how to handle the multiple Read processes condition
-        prioInheritence(lock_ind, priority);
-    }
-    
-    // insert in the queue based on waiting priority
-    // TODO: do we need to insert based on pinh?
-    insert(currpid, locktab[lock_ind].lqhead, pptr->pinh);
-    pptr->wait_time_start = ctr1000;
-    resched();
+int getMaxPrioWaitingProcs(int lockid) {
+	struct lentry *lptr = &locktab[lockid];
+	int maxprio = MININT;
+	int procid = firstid(lptr->lqhead);
+    while (procid != lptr->lqtail) {
+		int pprio = getNewProcPrio(procid); 
+		if (maxprio < pprio)
+			maxprio = pprio;
+		procid = q[procid].qnext;
+	}
+	return maxprio;				
 }
 
-void prioInheritence(int lockind, int priority) {
-    struct lentry *lptr = &locktab[lockind];
+void cascadingRampUpPriorities(int lockid) {
+    // for cascading inheritence
+	struct lentry *lptr = &locktab[lockid];
+	int i = 0;
+	for (; i < NPROC; i++) {
+		if (lptr->procs_hold_list[i] == ACQUIRED) {
+			struct pentry *pptr = &proctab[i];
+			int maxprio = getMaxAcquiredProcPrio(i);
+			if (maxprio > pptr->pprio)
+				pptr->pinh = maxprio;
+            // maxprio is <= than original priority of pptr process
+			else
+				pptr->pinh = 0;
+            // continue recursion if applicable
+			if (!isbadlockid(pptr->waitlockid))
+				cascadingRampUpPriorities(pptr->waitlockid);
+		}
+	}
+}
+
+int getMaxAcquiredProcPrio(int pid) {
+	struct pentry *pptr = &proctab[pid];
+	int maxprio = -1;
     int i = 0;
-    for (; i < NPROC; i++) {
-        if (lptr->proc_types[i] != LNONE) {
-            //this proc owns this lock, now
-            if (proctab[i].pinh < priority) {
-                // inherit the prio
-                proctab[i].pinh = priority;
-                // transitive property - cascade the priority inheritence
-                if (proctab[i].waitlockid > 0)
-                    prioInheritence(proctab[i].waitlockid, proctab[i].pinh);
-            }
-        }
-    }
+	for (; i < NLOCKS; i++) {
+		if (pptr->locks_hold_list[i] == ACQUIRED) {
+			struct lentry *lptr = &locktab[i];
+			if (maxprio < lptr->lprio)
+				maxprio = lptr->lprio;
+		}
+	}
+	return maxprio;
 }
 
-int getHighestWritePriority(int lock_ind) {
-    //#define   MININT          0x80000000
-    int max = MININT;
-    //int lind = getlast(locktab[lock_ind].ltail);
-    int pid = getlast(locktab[lock_ind].lqtail);
-    while (pid != locktab[lock_ind].lqhead) {
-        //if (locktab[lind].ltype == WRITE && q[lind].qkey > max) {
-        if (proctab[pid].waittype == WRITE && q[pid].qkey > max) {
-            max = q[pid].qkey;
-            break;
-        }
-        pid = q[pid].qprev;
-    }
-    return max;
+int getNewProcPrio(int pid) {
+    return (proctab[pid].pinh == 0) ? proctab[pid].pprio : proctab[pid].pinh;
 }
 
-//void assignOtherWaitingReaders(int lock_ind, int write_prio) {
-void assignOtherWaitingReaders(int lock_ind) {
-    int pid = getlast(locktab[lock_ind].lqtail);
-    while (pid != locktab[lock_ind].lqhead) {
-        //if (locktab[lind].ltype == WRITE)
-        //    break;
-        if (proctab[pid].waittype == WRITE)
-            break;
-        else{
-            // assign this lock to this reader
-            /*
-            struct lentry *lptr = &locktab[lock_ind];
-            lptr->proc_types[pid] = type;
-            proctab[pid].lock_types[lock_ind] = type;
-            */
-            claimLock(lock_ind, READ, pid);
-            dequeue(pid);
-            //TODO: this might change the max prio in lock wait triggering prioinheritence
-            //lptr->nreaders++;
-        }
-        pid = q[pid].qprev;
-    }
+void priorityInheritence(int lockid, int priority) {
+  	struct lentry *lptr = &locktab[lockid];    
+	int i = 0;
+	for (; i < NPROC; i++) {
+		if (lptr->procs_hold_list[i] == ACQUIRED) {
+			struct pentry *pptr = &proctab[i];
+			if (getNewProcPrio(i) < priority) {
+				pptr->pinh = priority;
+                int waitlockid = pptr->waitlockid;
+                // cascade the inheritence if required
+				if (!isbadlockid(waitlockid))
+					cascadingRampUpPriorities(waitlockid);
+			}
+		}
+	}
 }
 
-void claimLock(int ldes, int type, int pid) {
-    struct lentry *lptr = &locktab[ldes];
-    lptr->lstate = LUSED;
+void processWaitForLock(int lockid, int type, int priority, int pid) {
+    struct pentry *pptr = &proctab[pid];
+	pptr->waittype = type;
+	pptr->pstate = PRWAIT;
+	pptr->waitlockid = lockid;
+	pptr->wait_time_start = ctr1000;
+	insert(currpid, locktab[lockid].lqhead, priority);
+	locktab[lockid].lprio = getMaxPrioWaitingProcs(lockid);
+    // priority inheritence
+    priorityInheritence(lockid, getNewProcPrio(pid));
+	pptr->lockreturn = OK;
+	resched();
+}
+
+void claimUnusedLock(int lockid, int type, int pid) {
+    //proctab side
+    struct pentry *pptr = &proctab[pid];
+	pptr->waittype = BADTYPE;
+	pptr->waitlockid = BADPID;
+	pptr->locks_hold_list[lockid] = ACQUIRED;
+	pptr->wait_time_start = 0;
+    //locktab side    
+    struct lentry *lptr = &locktab[lockid];
     lptr->ltype = type;
-    lptr->proc_types[pid] = type;
-    
-    proctab[pid].lock_types[ldes] = type;
-    proctab[pid].wait_time_start = 0;
-    proctab[pid].waitlockid = -1;
-    proctab[pid].waittype = LNONE;
-    
-    if (type == WRITE)
-        lptr->nreaders = 0; //no readers when writer locked it
-    else if(type == READ)
+    if (type == READ)
         lptr->nreaders++;
+    else
+        lptr->nreaders = 0;
+    lptr->lprio = -1;
+	lptr->procs_hold_list[currpid] = ACQUIRED;
 }

@@ -3,41 +3,35 @@
 #include <kernel.h>
 #include <proc.h>
 #include <q.h>
-#include <sem.h>
-#include <stdio.h>
 #include <lock.h>
+#include <stdio.h>
 
 LOCAL int newlock();
 
-int lcreate () {
-    STATWORD ps;    
-	int	lock = newlock();
-
+int lcreate() {
+	STATWORD ps;
 	disable(ps);
-	
-    if ( lock == SYSERR ) {
+    int	lockid = newlock();
+	if (lockid == SYSERR) {
 		restore(ps);
 		return(SYSERR);
 	}
-	
-    restore(ps);
-	return(lock);
+	restore(ps);
+	return(lockid);
 }
 
 LOCAL int newlock()
 {
-	int	lock;
-	int	i;
-    
-	for (i = 0 ;i < NLOCKS ;i++) {
-		lock = nextlock--;
-		if (nextlock < 0)
+	int	i = 0;
+	for (; i < NLOCKS; i++) {
+		int lockid = nextlock--;
+		if (lockid < 0)
 			nextlock = NLOCKS - 1;
-		if (semaph[lock].sstate == LFREE) {
-			semaph[lock].sstate = LUSED;
-			return(lock);
+		if (locktab[lockid].lstate == LFREE) {
+			locktab[lockid].lstate = LUSED;
+			return(lockid);
 		}
 	}
-    
 	return(SYSERR);
 }
+

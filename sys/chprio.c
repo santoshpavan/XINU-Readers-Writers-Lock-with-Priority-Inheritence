@@ -15,7 +15,6 @@ SYSCALL chprio(int pid, int newprio)
 {
 	STATWORD ps;    
 	struct	pentry	*pptr;
-
 	disable(ps);
 	if (isbadpid(pid) || newprio<=0 ||
 	    (pptr = &proctab[pid])->pstate == PRFREE) {
@@ -23,25 +22,24 @@ SYSCALL chprio(int pid, int newprio)
 		return(SYSERR);
 	}
     
-    pptr->pinh = newprio;
-	pptr->pprio = newprio;
-	
     /*
-    PSP:
-    get the lockid of the waiting lock
-    dequeue this proc from the wait and reinsert
-    priority inheritence if the new proc is greater
+    PSP  
+    cal the new max prio and cascading
+    based on newprio assign the new pinh
     */
-    //struct pentry *pptr = &proctab[pid];
-    int lockid = pptr->waitlockid;
-    struct lentry *lptr = &locktab[lockid];
-    dequeue(pid);
-    insert(pid, lptr->lqhead, pptr->pinh);
-    if (pptr->pinh > lptr->lprio) {
-        lptr->lprio = pptr->pinh;
-        prioInheritence(lockid, pptr->pinh);
-    }
+    if (newprio > pptr->pprio)
+		pptr->pinh = newprio;
+	else {
+		pptr->pprio = newprio;
+		pptr->pinh = 0;
+	}
+    // calculating the new max prio and cascading if required
+	int lockid = pptr->waitlockid;
+    if (!isbadlockid(lockid)) {
+		locktab[lockid].lprio = getMaxPrioWaitingProcs(lockid);
+		cascadingRampUpPriorities(lockid);
+	}
     
-    restore(ps);
+	restore(ps);
 	return(newprio);
 }

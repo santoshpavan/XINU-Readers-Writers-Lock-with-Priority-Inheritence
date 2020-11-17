@@ -5,10 +5,6 @@
 
 /* q structure declarations, constants, and inline procedures		*/
 
-#ifndef NLOCKS
-#define NLOCKS 50
-#endif
-
 #ifndef	NQENT
 #define	NQENT		NPROC + NSEM + NSEM + NLOCKS + NLOCKS + 4	/* for ready & sleep	*/
 #endif
@@ -30,6 +26,8 @@ extern	int	nextqueue;
 #define	firstkey(list)	(q[q[(list)].qnext].qkey)
 #define lastkey(tail)	(q[q[(tail)].qprev].qkey)
 #define firstid(list)	(q[(list)].qnext)
+/*PSP*/
+#define lastid(list)    (q[(list)].qprev)
 
 /* gpq constants */
 

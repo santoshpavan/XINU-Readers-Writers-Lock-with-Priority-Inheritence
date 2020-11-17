@@ -3,12 +3,16 @@
 #include <kernel.h>
 #include <proc.h>
 #include <q.h>
-#include <sem.h>
-#include <stdio.h>
 #include <lock.h>
+#include <stdio.h>
 
-int releaseall (int numlocks, int locks,...) {
-    /*
+void removeWaitingProcandClaim(int, int, int);
+int isWriterProcessPresentInWaiting(int);
+void releaseLocksandAssignNextProc(int, int);
+void writerAcquireHandler(int, int);
+
+int releaseall(int numlocks, int locks,...) {
+	/*
     release the mentioned locks held by this process
     if the lock is not of the proc -> SYSERR
     after release of each lock, assign the lock to another process in its queue
@@ -16,65 +20,73 @@ int releaseall (int numlocks, int locks,...) {
     STATWORD ps;
     disable(ps);
     
-    struct pentry *pptr = &proctab[currpid];
-    int lockid;
+	struct pentry *pptr = &proctab[currpid];
+	int lockid;
     int i = 0;
-    
-    // changing the priority to the max of waiting processes across all locks held by this proc
-    pptr->pinh = getAllMaxWaitingPrio(currpid);
-    
-    // releasing the locks held by proc
-    while (i < numlocks) {
-        struct lentry *lptr = &locktab[i];
+	for(; i < numlocks; i++) {
         lockid = (int *)(&locks) + i;
-        
-        if (isbadlock(lockid) || lptr->proc_types[currpid] == LNONE)
+		if (isbadlockid(lockid))
             return SYSERR;
 
-        releaseLock(lockid, currpid);
-        //returns SYSERR when still being used eg: multiple Readers
-        assignNextProctoLock(lockid);
-        i++;
-    }
+		if (locktab[lockid].procs_hold_list[currpid] == ACQUIRED)
+			releaseLocksandAssignNextProc(currpid, lockid);
+		else
+			return SYSERR;
+	}
+	resched();
     
-    restore(ps);
-    return OK;
+	restore(ps);
+	return OK;	
 }
 
-// to release specific lockid
-void releaseLock(int lockid, int pid) {
+void removeWaitingProcandClaim(int pid, int lockid, int type) {
+    dequeue(pid);
+    claimUnusedLock(lockid, type, pid);
+    locktab[lockid].lprio = getMaxPrioWaitingProcs(lockid);
+	ready(pid, RESCHNO);
+}
+
+int isWriterProcessPresentInWaiting(int lockid) {
+    // check if there is a writer process in waiting queue
+    int procid = lastid(locktab[lockid].lqtail);
+    while (procid != locktab[lockid].lqhead) {
+		if (proctab[procid].waittype == WRITE)
+			return procid;
+	    procid = q[procid].qprev;
+	}
+    return -1;
+}
+
+void writerAcquireHandler(int lockid, int writer_pid) {
+    // writer claiming
+    struct lentry *lptr = &locktab[lockid];
+    int procid = lastid(lptr->lqtail);
+	while (procid != writer_pid) {
+	    removeWaitingProcandClaim(procid, lockid, READ);
+		procid = q[procid].qprev;
+	}
+}
+
+void releaseLocksandAssignNextProc(int pid, int lockid) {
     /*
-    change lock_types in proctab to LNONE
-    change proc_types in locktab to LNONE
+    change lock_types in proctab
+    change proc_types in locktab
     assign another process from its waiting queue
     if none is there, then lock is LFREE
     */
-    struct lentry *lptr = &locktab[lockid];
-    if (lptr->ltype == READ) {
+	struct lentry *lptr = &locktab[lockid];
+	struct pentry *pptr = &proctab[pid];
+    // release the lock
+    if (lptr->ltype == READ)
         lptr->nreaders--;
-        if (lptr->nreaders == 0) {
-            lptr->lstate = LFREE;
-            lptr->ltype = LNONE;
-        }
-    }
-    else {
-        // write is single owned
-        lptr->lstate = LFREE;
-        lptr->ltype = LNONE;
-   }
+	lptr->ltype = DELETED;
+	pptr->waittype = BADTYPE;
+	pptr->waitlockid = BADPID;
+	lptr->procs_hold_list[pid] = UNACQUIRED;
+	pptr->locks_hold_list[lockid] = UNACQUIRED;
 
-    lptr->proc_types[pid] = LNONE;
-    proctab[pid].lock_types[lockid] = LNONE;
-}
-
-int assignNextProctoLock(int lockid) {
-    struct lentry *lptr = &locktab[lockid];
-    // only free locks should call this - sanity check
-    // state changes in the above function
-    if (lptr->lstate == LUSED)
-        return SYSERR;
-        
     /*
+    --assign the next proc acc to policy
     get the maximum priority proc in the waiting queue
     get the waiting priority of that proc
     loop from tail to head till qkey != maxwaitprio or id == head
@@ -82,77 +94,55 @@ int assignNextProctoLock(int lockid) {
         if not, then lock that proc
     if yes, then find the procid with the max waiting time (within 1000)
     */
-    int lastprocid = getlast(lptr->lqtail);
-    int maxwaitprio = q[lastprocid].qkey;
-    int waitprocid = lastprocid;
-    int nextprocid = -1;
-    int count = 0;
     
-    while (waitprocid != lptr->lqhead && q[waitprocid].qkey == maxwaitprio) {
-        count++;
-        waitprocid = q[waitprocid].qprev;
-    }
-    if (count > 1) {
-        /*
-        find the longest waiting time and its procid
-        traverse again to check if there are timediff < 1000
-        if yes, check if anyone of them is a writer and take that
-        */
-        
-        // there are multiple procs with same prio
-        waitprocid = lastprocid;
-        unsigned long timenow = ctr1000;
-        unsigned long max = -1;
-        int i = 0;
-        // finding the longest waiting time
-        for (;i < count; i++, waitprocid = q[waitprocid].qprev) {
-            unsigned long waittimediff = timenow - proctab[waitprocid].wait_time_start;
-            if (max < waittimediff) {
-                if (waittimediff - max >= 1000) {
-                    max = waittimediff;
-                    nextprocid = waitprocid;
-                }
-            }
-        }
-        // checking for timediff < 1000 and if there is a writer
-        int temp = nextprocid;
-        waitprocid = lastprocid;
-        for (i = 0; i < count; i++, waitprocid = q[waitprocid].qprev) {
-            unsigned long waittimediff = timenow - proctab[waitprocid].wait_time_start;
-            if (max - waittimediff < 1000 && waitprocid != temp) {
-                // writer is given priority
-                if (proctab[waitprocid].waittype == WRITE) {
-                    nextprocid = waitprocid;
-                    break;
-                }
-            }
-        }
-    }
-    else {
-        // there is only one
-        nextprocid = waitprocid;
-    }
+	int maxprio = MININT;
+    // if the waiting queue is not empty
+	if (nonempty(lptr->lqhead)) {
+		int procid = lastid(lptr->lqtail);
+		maxprio = lastkey(lptr->lqtail);
+        // checking for write process in waiting
+        int writerProcExist = isWriterProcessPresentInWaiting(lockid);
+		if (!isbadpid(writerProcExist)) {
+            // if writer present - valid pid
+			procid = lastid(lptr->lqtail);
+            // if it's the last one
+            if (q[writerProcExist].qkey == maxprio) {
+				unsigned long time_diff = 0;
+                if (proctab[procid].wait_time_start >= proctab[writerProcExist].wait_time_start)
+                    time_diff = proctab[procid].wait_time_start - proctab[writerProcExist].wait_time_start;
+                else
+                    time_diff = proctab[writerProcExist].wait_time_start - proctab[procid].wait_time_start;
+				if (time_diff < 1000) {
+                    // time difference is less than 1sec                
+		            int flag = 0;
+                    int i = 0;
+					for (; i < NPROC; i++) {
+						if (lptr->procs_hold_list[i] == ACQUIRED) {
+							flag = 1;
+							break;
+						}
+					}
+					if (flag == 0)
+						removeWaitingProcandClaim(writerProcExist, lockid, WRITE);
+				}
+				else
+					writerAcquireHandler(lockid, writerProcExist);				
+			}
+			else
+				writerAcquireHandler(lockid, writerProcExist);
+		}
+		else {         
+            // if writer absent -- invalid pid
+			procid = lastid(lptr->lqtail);
+			while (!isbadpid(procid) && procid != lptr->lqhead) {
+				removeWaitingProcandClaim(procid, lockid, READ);
+				procid = q[procid].qprev;
+			}
+		}
+	}
     
-    // cannot call lock here as it operates on currpid
-    // in lock.c
-    claimLock(lockid, proctab[nextprocid].waittype, nextprocid);
-    dequeue(nextprocid);
-    // if reader then claim other readers too
-    if (locktab[lockid].ltype == READ) {
-        //int highest_writer_prio = getHighestWritePriority(ldes);
-        assignOtherWaitingReaders(lockid);
-    }
-}
-
-int getAllMaxWaitingPrio(int pid) {
-    struct pentry *pptr = &proctab[pid];
-    int max = MININT;
-    int i = 0;
-    for (; i < NLOCKS; i++) {
-        if (pptr->lock_types[i] != LNONE && max < locktab[i].lprio) {
-            max = locktab[i].lprio;
-        }
-    }
-    
-    return max;
+    // updating the values after changes
+	lptr->lprio = getMaxPrioWaitingProcs(lockid);
+	maxprio = getMaxAcquiredProcPrio(pid);
+    pptr->pinh = (maxprio > pptr->pprio) ? maxprio : 0;
 }

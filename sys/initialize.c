@@ -13,6 +13,7 @@
 #include <q.h>
 #include <io.h>
 #include <stdio.h>
+#include <lock.h>
 
 /*#define DETAIL */
 #define HOLESIZE	(600)	
@@ -31,7 +32,7 @@ LOCAL   int	sysinit();
 struct	pentry	proctab[NPROC]; /* process table			*/
 int	nextproc;		/* next process slot to use in create	*/
 struct	sentry	semaph[NSEM];	/* semaphore table			*/
-int	nextsem;		/* next sempahore slot to use in screate*/
+int	nextsem;		/* next sempahore slot to use in screate*/	
 struct	qent	q[NQENT];	/* q table (see queue.c)		*/
 int	nextqueue;		/* next slot in q structure to use	*/
 char	*maxaddr;		/* max memory address (set by sizmem)	*/
@@ -48,10 +49,6 @@ int	console_dev;		/* console device			*/
 
 int	rdyhead, rdytail;	/* head/tail of ready list (q indicies)	*/
 char	vers[100];		/* Xinu version printed at startup	*/
-
-
-extern  void linit();
-extern int nextlock;
 
 /************************************************************************/
 /***				NOTE:				      ***/
@@ -181,10 +178,9 @@ LOCAL int sysinit()
 		sptr->sqtail = 1 + (sptr->sqhead = newqueue());
 	}
     
-    /*PSP: locks initialize */
-    linit();
-    nextlock = NLOCKS - 1;
-    
+	/* PSP: initialize locks */
+	linit();
+	
 	rdytail = 1 + (rdyhead=newqueue());/* initialize ready list */
 
 #ifdef	MEMMARK

@@ -3,26 +3,38 @@
 #include <kernel.h>
 #include <proc.h>
 #include <q.h>
-#include <sem.h>
-#include <stdio.h>
 #include <lock.h>
+#include <stdio.h>
 
-int ldelete (int lock) {
-    STATWORD ps;    
-	int	pid;
-	struct	lentry	*lptr = &locktab[lock];
 
+SYSCALL ldelete(int lockdescriptor) {
+	STATWORD ps;    
 	disable(ps);
-	if (isbadsem(lock) || lptr->lstate == LFREE) {
+    
+	if (isbadlockid(lockdescriptor) || locktab[lockdescriptor].lstate==LFREE) {
 		restore(ps);
 		return(SYSERR);
 	}
+    
+    struct	lentry	*lptr = &locktab[lockdescriptor];
 	lptr->lstate = LFREE;
-	if ( nonempty(lptr->lqhead) ) {
-		while( (pid = getfirst(lptr->lqhead)) != EMPTY)
-		  {
-		    proctab[pid].pwaitret = DELETED;
-		    ready(pid, RESCHNO);
+	lptr->ltype = DELETED;
+	lptr->lprio = -1;
+	// reset the mappings
+	int i = 0;
+    for (; i < NPROC; i++) {
+		if (lptr->procs_hold_list[i] == ACQUIRED) {
+			lptr->procs_hold_list[i] = UNACQUIRED;
+			proctab[i].locks_hold_list[lockdescriptor] = UNACQUIRED;
+		}
+	}
+	
+	if (nonempty(lptr->lqhead)) {
+    	int	pid = getfirst(lptr->lqhead);
+		while(pid != EMPTY) {
+		    proctab[pid].lockreturn = DELETED;
+		    proctab[pid].waitlockid = BADPID;	
+		    ready(pid,RESCHNO);
 		  }
 		resched();
 	}

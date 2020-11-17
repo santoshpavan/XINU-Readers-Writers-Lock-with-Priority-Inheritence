@@ -67,16 +67,19 @@ SYSCALL create(procaddr,ssize,priority,name,nargs,args)
 	pptr->pirmask[0] = 0;
 	pptr->pnxtkin = BADPID;
 	pptr->pdevs[0] = pptr->pdevs[1] = pptr->ppagedev = BADDEV;
-    
-    /*PSP*/
-    for (i = 0; i < NLOCKS; i++) {
-        pptr->lock_types[i] = LNONE;
-    }
-    pptr->wait_time_start = 0;
-    pptr->pinh = priority; //TODO: NOT SURE!
-    pptr->waitlockid = -1;
 
-	/* Bottom of stack */
+	/*PSP: Locking stuff */
+	for (i = 0; i < NLOCKS; i++) {
+		pptr->locks_hold_list[i] = UNACQUIRED;
+	}
+	pptr->waittype = BADTYPE;
+	pptr->waitlockid = BADPID;
+	pptr->wait_time_start = 0;
+	pptr->lockreturn = OK;
+    pptr->pinh = 0;
+
+
+		/* Bottom of stack */
 	*saddr = MAGIC;
 	savsp = (unsigned long)saddr;
 
@@ -104,7 +107,7 @@ SYSCALL create(procaddr,ssize,priority,name,nargs,args)
 	*--saddr = 0;		/* %esi */
 	*--saddr = 0;		/* %edi */
 	*pushsp = pptr->pesp = (unsigned long)saddr;
-
+    
 	restore(ps);
 	return(pid);
 }

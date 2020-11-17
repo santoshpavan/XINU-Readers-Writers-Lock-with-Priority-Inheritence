@@ -4,12 +4,15 @@
 #include <stdio.h>
 #include <lock.h>
 
+extern void task1();
+
 #define DEFAULT_LOCK_PRIO 20
 
 #define assert(x,error) if(!(x)){ \
             kprintf(error);\
             return;\
-            }
+            }      
+
 int mystrncmp(char* des,char* target,int n){
     int i;
     for (i=0;i<n;i++){
@@ -190,11 +193,14 @@ int main( )
          * The provided results do not guarantee your correctness.
          * You need to read the PA2 instruction carefully.
          */
-    kprintf("running main");
-	test1();
+	/*
+    test1();
 	test2();
 	test3();
-
+    */
+    /*PSP*/    
+    task1();
+    
         /* The hook to shutdown QEMU for process-like execution of XINU.
          * This API call exists the QEMU process.
          */

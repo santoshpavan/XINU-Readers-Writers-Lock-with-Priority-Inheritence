@@ -1,0 +1,9 @@
+1) Priority Inversion Problem
+1) 
+There is another method to solve the priority inversion problem, called "Priority Ceiling Protocol". In this method, each resource is assigned a priority ceiling, which has the value of the highest priority value of any task.
+The idea behind this is - when a process approaches a critical section, and obtains a lock for the shared resource, its priority is increased to ensure that it is completed with its task as quickly as possible for the shared resource to be used by another process.
+This increase in priority to the priority ceiling can be either done when there is another process in waiting queue or immediately after the acquiring of the lock. Hence, the two approaches associated with this method - Original Ceiling Priority Protocol (OCPP) and Immediate Ceiling Priority Protocol (ICPP).
+Reference: https://en.wikipedia.org/wiki/Priority_ceiling_protocol
+
+2)
+The following is the obtained output from the task1.c testing.

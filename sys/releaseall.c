@@ -26,7 +26,7 @@ int releaseall (int numlocks, long locks,...) {
 		if (isbadlockid(lockid))
             return SYSERR;
             
-		if (rw_locks[lockid].procs_hold_list[currpid] == ACQUIRED)
+		if (locktab[lockid].procs_hold_list[currpid] == ACQUIRED)
 			releaseLDForProc(currpid, lockid);
 		else
 			return SYSERR;
@@ -39,7 +39,7 @@ int releaseall (int numlocks, long locks,...) {
 
 void removeWaitingProcess(int pid, int lockid, int type) {
 	struct pentry *nptr = &proctab[pid];
-	struct lentry *lptr = &rw_locks[lockid];
+	struct lentry *lptr = &locktab[lockid];
     dequeue(pid);
 	nptr->bm_locks[lockid] = ACQUIRED;
 	lptr->procs_hold_list[pid] = ACQUIRED;
@@ -52,8 +52,8 @@ void removeWaitingProcess(int pid, int lockid, int type) {
 
 int isWriterProcessPresentInWaiting(int lockid) {
     // check if there is a writer process in waiting queue
-    int prev = lastid(rw_locks[lockid].lqtail);
-    while (prev != rw_locks[lockid].lqhead) {
+    int prev = lastid(locktab[lockid].lqtail);
+    while (prev != locktab[lockid].lqhead) {
 		if (proctab[prev].wait_ltype == WRITE)
 			return prev;
 	    prev = q[prev].qprev;
@@ -62,7 +62,7 @@ int isWriterProcessPresentInWaiting(int lockid) {
 }
 
 void releaseLDForProc(int pid, int lockid) {
-	struct lentry *lptr = &rw_locks[lockid];
+	struct lentry *lptr = &locktab[lockid];
 	struct pentry *pptr = &proctab[pid];
 	int maxprio = -1;
 

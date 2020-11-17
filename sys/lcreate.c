@@ -8,42 +8,28 @@
 
 LOCAL int newlock();
 
-/*------------------------------------------------------------------------
- * lcreate  --  create and initialize a lock, returning its id
- *------------------------------------------------------------------------
- */
-int lcreate()
-{
-	STATWORD ps;    
-	int	ld;
-
+int lcreate() {
+	STATWORD ps;
 	disable(ps);
-	if ((ld=newlock())==SYSERR) {
+    int	lockid = newlock();
+	if (lockid == SYSERR) {
 		restore(ps);
 		return(SYSERR);
 	}
-	
-	/* lqhead and lqtail were initialized at system startup */
 	restore(ps);
-	return(ld);
+	return(lockid);
 }
 
-/*------------------------------------------------------------------------
- * newlock  --  allocate an unused lock and return its index
- *------------------------------------------------------------------------
- */
 LOCAL int newlock()
 {
-	int	ld;
-	int	i;
-
-	for (i=0 ; i<NLOCKS ; i++) {
-		ld=nextlock--;
-		if (ld < 0)
-			nextlock = NLOCKS-1;
-		if (rw_locks[ld].lstate==LFREE) {
-			rw_locks[ld].lstate = LUSED;
-			return(ld);
+	int	i = 0;
+	for (; i < NLOCKS; i++) {
+		int lockid = nextlock--;
+		if (lockid < 0)
+			nextlock = NLOCKS - 1;
+		if (locktab[lockid].lstate == LFREE) {
+			locktab[lockid].lstate = LUSED;
+			return(lockid);
 		}
 	}
 	return(SYSERR);

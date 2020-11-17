@@ -33,7 +33,7 @@ SYSCALL chprio(int pid, int newprio)
 
 	ld = pptr->wait_lockid;
     if (!isbadlockid(ld)) {
-		lptr = &rw_locks[ld];
+		lptr = &locktab[ld];
 		lptr->lprio = getMaxPrioWaitingProcs(ld);
 		cascadingRampUpPriorities(ld);	
 	} 

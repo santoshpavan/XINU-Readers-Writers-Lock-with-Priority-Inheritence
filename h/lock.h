@@ -22,7 +22,7 @@ struct	lentry	{
 	int	    lprio;		/* max proc priority in waiting queue */
 	int 	procs_hold_list[NPROC]; /* procs holding this lock */
 };
-struct lentry rw_locks[NLOCKS];
+struct lentry locktab[NLOCKS];
 int nextlock;
 
 // lock.c

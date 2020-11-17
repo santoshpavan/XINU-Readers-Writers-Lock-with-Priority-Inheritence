@@ -10,7 +10,7 @@ void linit() {
 	nextlock = NLOCKS - 1;
 	int i = 0;
 	for (; i < NLOCKS; i++) {
-		lptr = &rw_locks[i];
+		lptr = &locktab[i];
 		lptr->lstate = 	LFREE;
 		lptr->lqtail = 1 + (lptr->lqhead = newqueue());
 		lptr->ltype = DELETED;

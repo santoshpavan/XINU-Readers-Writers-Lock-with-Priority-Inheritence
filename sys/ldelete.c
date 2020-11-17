@@ -10,12 +10,12 @@ SYSCALL ldelete(int lockdescriptor) {
 	STATWORD ps;    
 	disable(ps);
     
-	if (isbadlockid(lockdescriptor) || rw_locks[lockdescriptor].lstate==LFREE) {
+	if (isbadlockid(lockdescriptor) || locktab[lockdescriptor].lstate==LFREE) {
 		restore(ps);
 		return(SYSERR);
 	}
     
-    struct	lentry	*lptr = &rw_locks[lockdescriptor];
+    struct	lentry	*lptr = &locktab[lockdescriptor];
 	lptr->lstate = LFREE;
 	lptr->ltype = DELETED;
 	lptr->lprio = -1;

@@ -26,7 +26,7 @@ int lock(int lockid, int type, int priority) {
 	STATWORD ps;
 	disable(ps);
 	
-	struct lentry *lptr = &rw_locks[lockid];
+	struct lentry *lptr = &locktab[lockid];
 	struct pentry *pptr = &proctab[currpid];        
 	
     if (isbadlockid(lockid) || lptr->lstate == LFREE) {
@@ -75,7 +75,7 @@ int lock(int lockid, int type, int priority) {
 }
 
 int getMaxPrioWaitingProcs(int lockid) {
-	struct lentry *lptr = &rw_locks[lockid];
+	struct lentry *lptr = &locktab[lockid];
 	int maxprio = -1;
 	int next = firstid(lptr->lqhead);
     while (next != lptr->lqtail) {
@@ -90,7 +90,7 @@ int getMaxPrioWaitingProcs(int lockid) {
 
 void cascadingRampUpPriorities(int lockid) {
     // for cascading inheritence
-	struct lentry *lptr = &rw_locks[lockid];
+	struct lentry *lptr = &locktab[lockid];
 	int i = 0;
 	for (; i < NPROC; i++) {
 		if (lptr->procs_hold_list[i] == ACQUIRED) {
@@ -113,7 +113,7 @@ int getMaxAcquiredProcPrio(int pid) {
     int i = 0;
 	for (; i < NLOCKS; i++) {
 		if (pptr->bm_locks[i] == ACQUIRED) {
-			struct lentry *lptr = &rw_locks[i];
+			struct lentry *lptr = &locktab[i];
 			if (maxprio < lptr->lprio)
 				maxprio = lptr->lprio;
 		}
@@ -126,7 +126,7 @@ int getProcessPriority(int pid) {
 }
 
 void priorityInheritence(int lockid, int priority) {
-  	struct lentry *lptr = &rw_locks[lockid];    
+  	struct lentry *lptr = &locktab[lockid];    
 	int i = 0;
 	for (; i < NPROC; i++) {
 		if (lptr->procs_hold_list[i] == ACQUIRED) {
@@ -144,7 +144,7 @@ void priorityInheritence(int lockid, int priority) {
 
 void processWaitForLock(int lockid, int type, int priority, int pid) {
     struct pentry *pptr = &proctab[pid];
-    struct lentry *lptr = &rw_locks[lockid];
+    struct lentry *lptr = &locktab[lockid];
 	pptr->pstate = PRWAIT;
 	pptr->wait_lockid = lockid;
 	pptr->wait_time = ctr1000;
@@ -160,7 +160,7 @@ void processWaitForLock(int lockid, int type, int priority, int pid) {
 
 void claimUnusedLock(int lockid, int type, int priority, int pid) {
     struct pentry *pptr = &proctab[pid];
-    struct lentry *lptr = &rw_locks[lockid];
+    struct lentry *lptr = &locktab[lockid];
     lptr->ltype = type;
     lptr->lprio = -1;
 	lptr->procs_hold_list[currpid] = ACQUIRED;

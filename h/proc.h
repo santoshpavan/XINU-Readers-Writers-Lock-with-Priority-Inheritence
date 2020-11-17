@@ -35,6 +35,7 @@
 #define	NULLPROC	0		/* id of the null process; it	*/
 					/*  is always eligible to run	*/
 #define	BADPID		-1		/* used when invalid pid needed	*/
+#define BADTYPE     -1
 
 #define	isbadpid(x)	(x<=0 || x>=NPROC)
 
@@ -42,6 +43,12 @@
 #define NLOCKS          50      /* number of maximum locks */
 #endif
 
+#ifndef READ
+#define READ     0
+#endif
+#ifndef WRITE
+#define WRITE    1
+#endif
 /* process table entry */
 
 struct	pentry	{
@@ -66,15 +73,13 @@ struct	pentry	{
 	int	pwaitret;
 
     /* PSP */
-	int 	pinh; 	/* current inherited priority of the process */
-	int	    bm_locks[NLOCKS]; /* bit mask of all locks held by the process */
-	int 	wait_lockid;	/* lock descriptor on which process has been blocked */ 
-	unsigned long wait_time; /* waiting time period for which the process has been blocked  */
-	int 	wait_pprio;	/* waiting priority of the process for acquiring lock */
-	int 	wait_ltype; /* lock type requested either READ/WRITE on which process has been blocked */
-	int 	plockret;	 	
+	int	    locks_hold_list[NLOCKS]; //locks held by this proc
+	unsigned long wait_time_start; //has the start time of waiting
+	int 	pinh; //inherited prio
+	int 	waitlockid;	//waiting for this lock
+	int 	waittype; //WRITE or READ
+	int 	lockreturn;	//to track the status of the lock aquiring
 };
-
 
 extern	struct	pentry proctab[];
 extern	int	numproc;		/* currently active processes	*/

@@ -20,14 +20,38 @@ SYSCALL kill(int pid)
 	STATWORD ps;    
 	struct	pentry	*pptr;		/* points to proc. table for pid*/
 	int	dev;
-	int ld;
 	struct lentry *lptr;
-	int reschflag = 0;
 	disable(ps);
 	if (isbadpid(pid) || (pptr= &proctab[pid])->pstate==PRFREE) {
 		restore(ps);
 		return(SYSERR);
 	}
+    
+    
+    /*
+    PSP:
+    release locks
+    if pid is waiting on a lock, then
+        release that 
+    */
+    // release the locks
+	int resched_flag = 0;
+	int lockid = 0;
+	for (; lockid < NLOCKS; lockid++) {
+		if (pptr->locks_hold_list[lockid] == 1) {
+			releaseLocksandAssignNextProc(pid, lockid);
+			resched_flag = 1;
+		}
+	}
+    // if in wait state then release that too
+    if (pptr->pstate == PRWAIT) {
+    	if (!isbadlockid(pptr->waitlockid)) {
+    		pptr->pinh = 0;
+    		releaseLDForWaitProc(pid, pptr->waitlockid);
+    	}
+    }
+        
+    
 	if (--numproc == 0)
 		xdone();
 
@@ -44,43 +68,22 @@ SYSCALL kill(int pid)
 	send(pptr->pnxtkin, pid);
 
 	freestk(pptr->pbase, pptr->pstklen);
-
-	for (ld = 0; ld < NLOCKS; ld++)
-	{
-		/* release all acquired locks */
-		if (pptr->bm_locks[ld] == 1) 
-		{
-			releaseLDForProc(pid,ld);
-			reschflag = 1;
-		}
-	}
-		
+    
 	switch (pptr->pstate) {
-
-	case PRCURR:	pptr->pstate = PRFREE;	/* suicide */
-			resched();
-
-	case PRWAIT:	semaph[pptr->psem].semcnt++;
-			ld = pptr->wait_lockid;
-			if (!isbadlockid(ld)) {
-				pptr->pinh = 0;
-				releaseLDForWaitProc(pid, ld);
-			}
-
-	case PRREADY:	dequeue(pid);
-			pptr->pstate = PRFREE;
-			break;
-
-	case PRSLEEP:
-	case PRTRECV:	unsleep(pid);
-						/* fall through	*/
-	default:	pptr->pstate = PRFREE;
+    	case PRCURR:	pptr->pstate = PRFREE;	/* suicide */
+    			resched();
+    	case PRWAIT:	semaph[pptr->psem].semcnt++;
+    	case PRREADY:	dequeue(pid);
+    			        pptr->pstate = PRFREE;
+    			        break;
+    	case PRSLEEP:
+    	case PRTRECV:	unsleep(pid);   
+                                                /* fall through	*/
+    	default:	pptr->pstate = PRFREE;
 	}
 
-	if (reschflag == 1)
-	{
+	if (resched_flag == 1)
 		resched();
-	}	
 	
 	restore(ps);
 	return(OK);
@@ -90,10 +93,10 @@ void releaseLDForWaitProc(int pid, int lockid) {
 	struct lentry *lptr = &locktab[lockid];
 	struct pentry *pptr = &proctab[pid];
 	dequeue(pid);
-	pptr->wait_lockid = -1;
-	pptr->wait_ltype = -1;
-	pptr->wait_time = 0;
-	pptr->plockret = DELETED;
+	pptr->waitlockid = BADPID;
+	pptr->waittype = BADTYPE;
+	pptr->wait_time_start = 0;
+	pptr->lockreturn = DELETED;
 	lptr->lprio = getMaxPrioWaitingProcs(lockid);	
 	cascadingRampUpPriorities(lockid);
 }

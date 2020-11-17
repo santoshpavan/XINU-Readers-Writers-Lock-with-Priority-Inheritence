@@ -1,3 +1,4 @@
+/* Initialize the Locks */
 #include <conf.h>
 #include <kernel.h>
 #include <proc.h>
@@ -12,12 +13,12 @@ void linit() {
 	for (; i < NLOCKS; i++) {
 		lptr = &locktab[i];
 		lptr->lstate = 	LFREE;
-		lptr->lqtail = 1 + (lptr->lqhead = newqueue());
 		lptr->ltype = DELETED;
-		lptr->lprio = -1;
+		lptr->lqtail = 1 + (lptr->lqhead = newqueue());
+		lptr->lprio = MININT;
         int j = 0;
 		for (; j < NPROC; j++) {
-			lptr->procs_hold_list[j] = 0;
+			lptr->procs_hold_list[j] = UNACQUIRED;
         }
 	}
 }

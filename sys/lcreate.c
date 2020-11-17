@@ -1,4 +1,4 @@
-
+/* creates a lock descriptor */
 #include <conf.h>
 #include <kernel.h>
 #include <proc.h>

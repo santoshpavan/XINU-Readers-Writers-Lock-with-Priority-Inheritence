@@ -177,8 +177,9 @@ LOCAL int sysinit()
 		(sptr = &semaph[i])->sstate = SFREE;
 		sptr->sqtail = 1 + (sptr->sqhead = newqueue());
 	}
-	
-	linit(); /* initialize lock descriptors */
+    
+	/* PSP: initialize locks */
+	linit();
 	
 	rdytail = 1 + (rdyhead=newqueue());/* initialize ready list */
 

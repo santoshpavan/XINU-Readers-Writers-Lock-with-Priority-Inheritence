@@ -21,5 +21,5 @@ SYSCALL getprio(int pid)
 		return(SYSERR);
 	}
 	restore(ps);
-	return(getProcessPriority(pid));
+	return(getNewProcPrio(pid));
 }

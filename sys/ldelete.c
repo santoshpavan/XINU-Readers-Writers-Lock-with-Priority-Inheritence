@@ -1,3 +1,4 @@
+/* Delete the lock descriptor passed */
 #include <conf.h>
 #include <kernel.h>
 #include <proc.h>
@@ -19,20 +20,20 @@ SYSCALL ldelete(int lockdescriptor) {
 	lptr->lstate = LFREE;
 	lptr->ltype = DELETED;
 	lptr->lprio = -1;
-	/* reset bit mask of process ids currently holding the lock */
+	// reset the mappings
 	int i = 0;
     for (; i < NPROC; i++) {
 		if (lptr->procs_hold_list[i] == ACQUIRED) {
 			lptr->procs_hold_list[i] = UNACQUIRED;
-			proctab[i].bm_locks[lockdescriptor] = UNACQUIRED;
+			proctab[i].locks_hold_list[lockdescriptor] = UNACQUIRED;
 		}
-	}	
+	}
 	
 	if (nonempty(lptr->lqhead)) {
     	int	pid = getfirst(lptr->lqhead);
 		while(pid != EMPTY) {
-		    proctab[pid].plockret = DELETED;
-		    proctab[pid].wait_lockid = -1;	
+		    proctab[pid].lockreturn = DELETED;
+		    proctab[pid].waitlockid = BADPID;	
 		    ready(pid,RESCHNO);
 		  }
 		resched();

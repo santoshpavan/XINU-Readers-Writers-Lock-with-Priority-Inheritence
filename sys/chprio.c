@@ -15,28 +15,31 @@ SYSCALL chprio(int pid, int newprio)
 {
 	STATWORD ps;    
 	struct	pentry	*pptr;
-	struct lentry *lptr;
-	int ld;
 	disable(ps);
 	if (isbadpid(pid) || newprio<=0 ||
 	    (pptr = &proctab[pid])->pstate == PRFREE) {
 		restore(ps);
 		return(SYSERR);
 	}
-	if (newprio > pptr->pprio) {
+    
+    /*
+    PSP  
+    cal the new max prio and cascading
+    based on newprio assign the new pinh
+    */
+    if (newprio > pptr->pprio)
 		pptr->pinh = newprio;
-	}
 	else {
 		pptr->pprio = newprio;
 		pptr->pinh = 0;
 	}
-
-	ld = pptr->wait_lockid;
-    if (!isbadlockid(ld)) {
-		lptr = &locktab[ld];
-		lptr->lprio = getMaxPrioWaitingProcs(ld);
-		cascadingRampUpPriorities(ld);	
-	} 
+    // calculating the new max prio and cascading if required
+	int lockid = pptr->waitlockid;
+    if (!isbadlockid(lockid)) {
+		locktab[lockid].lprio = getMaxPrioWaitingProcs(lockid);
+		cascadingRampUpPriorities(lockid);
+	}
+    
 	restore(ps);
 	return(newprio);
 }

@@ -6,35 +6,31 @@
 #include <stdio.h>
 
 
-SYSCALL ldelete(int lockdescriptor)
-{
+SYSCALL ldelete(int lockdescriptor) {
 	STATWORD ps;    
-	int	pid;
-	struct	lentry	*lptr;
-	int i;
-
 	disable(ps);
-	if (isbadlock(lockdescriptor) || rw_locks[lockdescriptor].lstate==LFREE) {
+    
+	if (isbadlockid(lockdescriptor) || rw_locks[lockdescriptor].lstate==LFREE) {
 		restore(ps);
 		return(SYSERR);
 	}
-	lptr = &rw_locks[lockdescriptor];
+    
+    struct	lentry	*lptr = &rw_locks[lockdescriptor];
 	lptr->lstate = LFREE;
 	lptr->ltype = DELETED;
 	lptr->lprio = -1;
 	/* reset bit mask of process ids currently holding the lock */
-	for (i=0;i<NPROC;i++)
-	{
-		if (lptr->lproc_list[i] == 1)
-		{
-			lptr->lproc_list[i] = 0;
-			proctab[i].bm_locks[lockdescriptor] = 0;
+	int i = 0;
+    for (; i < NPROC; i++) {
+		if (lptr->procs_hold_list[i] == ACQUIRED) {
+			lptr->procs_hold_list[i] = UNACQUIRED;
+			proctab[i].bm_locks[lockdescriptor] = UNACQUIRED;
 		}
 	}	
 	
 	if (nonempty(lptr->lqhead)) {
-		while( (pid=getfirst(lptr->lqhead)) != EMPTY)
-		  {
+    	int	pid = getfirst(lptr->lqhead);
+		while(pid != EMPTY) {
 		    proctab[pid].plockret = DELETED;
 		    proctab[pid].wait_lockid = -1;	
 		    ready(pid,RESCHNO);

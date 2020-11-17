@@ -11,7 +11,7 @@ int getProcessPriority(int);
 void priorityInheritence(int, int);
 void processWaitForLock(int, int, int, int);
 void claimUnusedLock(int, int, int, int);
-int getMaxWaitingProcPrio(int);
+int getMaxAcquiredProcPrio(int);
 
 int lock(int lockid, int type, int priority) {
     /*
@@ -29,7 +29,7 @@ int lock(int lockid, int type, int priority) {
 	struct lentry *lptr = &rw_locks[lockid];
 	struct pentry *pptr = &proctab[currpid];        
 	
-    if (isbadlock(lockid) || lptr->lstate == LFREE) {
+    if (isbadlockid(lockid) || lptr->lstate == LFREE) {
 		restore(ps);
 		return(SYSERR);
 	}
@@ -93,21 +93,21 @@ void cascadingRampUpPriorities(int lockid) {
 	struct lentry *lptr = &rw_locks[lockid];
 	int i = 0;
 	for (; i < NPROC; i++) {
-		if (lptr->lproc_list[i] == ACQUIRED) {
+		if (lptr->procs_hold_list[i] == ACQUIRED) {
 			struct pentry *pptr = &proctab[i];
-			int maxprio = getMaxWaitingProcPrio(i);
+			int maxprio = getMaxAcquiredProcPrio(i);
 			if (maxprio > pptr->pprio)
 				pptr->pinh = maxprio;
             // maxprio is <= than original priority of pptr process
 			else
 				pptr->pinh = 0;
-			if (!isbadlock(pptr->wait_lockid))
+			if (!isbadlockid(pptr->wait_lockid))
 				cascadingRampUpPriorities(pptr->wait_lockid);
 		}
 	}
 }
 
-int getMaxWaitingProcPrio(int pid) {
+int getMaxAcquiredProcPrio(int pid) {
 	struct pentry *pptr = &proctab[pid];
 	int maxprio = -1;
     int i = 0;
@@ -129,13 +129,13 @@ void priorityInheritence(int lockid, int priority) {
   	struct lentry *lptr = &rw_locks[lockid];    
 	int i = 0;
 	for (; i < NPROC; i++) {
-		if (lptr->lproc_list[i] == ACQUIRED) {
+		if (lptr->procs_hold_list[i] == ACQUIRED) {
 			struct pentry *pptr = &proctab[i];
 			if (getProcessPriority(i) < priority) {
 				pptr->pinh = priority;
                 int waitlockid = pptr->wait_lockid;
                 // cascade the inheritence if required
-				if (!isbadlock(waitlockid))
+				if (!isbadlockid(waitlockid))
 					cascadingRampUpPriorities(waitlockid);
 			}
 		}
@@ -163,7 +163,7 @@ void claimUnusedLock(int lockid, int type, int priority, int pid) {
     struct lentry *lptr = &rw_locks[lockid];
     lptr->ltype = type;
     lptr->lprio = -1;
-	lptr->lproc_list[currpid] = ACQUIRED;
+	lptr->procs_hold_list[currpid] = ACQUIRED;
 	pptr->bm_locks[lockid] = ACQUIRED;
 	pptr->wait_lockid = -1;
     pptr->wait_pprio = priority;

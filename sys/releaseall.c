@@ -23,10 +23,10 @@ int releaseall (int numlocks, long locks,...) {
     int i = 0;
 	for(; i < numlocks; i++) {
         lockid = (int *)(&locks) + i;
-		if (isbadlock(lockid))
+		if (isbadlockid(lockid))
             return SYSERR;
             
-		if (rw_locks[lockid].lproc_list[currpid] == ACQUIRED)
+		if (rw_locks[lockid].procs_hold_list[currpid] == ACQUIRED)
 			releaseLDForProc(currpid, lockid);
 		else
 			return SYSERR;
@@ -42,7 +42,7 @@ void removeWaitingProcess(int pid, int lockid, int type) {
 	struct lentry *lptr = &rw_locks[lockid];
     dequeue(pid);
 	nptr->bm_locks[lockid] = ACQUIRED;
-	lptr->lproc_list[pid] = ACQUIRED;
+	lptr->procs_hold_list[pid] = ACQUIRED;
  	lptr->ltype = type;
 	nptr->wait_time = 0;
 	nptr->wait_lockid = -1;
@@ -68,7 +68,7 @@ void releaseLDForProc(int pid, int lockid) {
 
 	// set ltype deleted temporarily
 	lptr->ltype = DELETED;
-	lptr->lproc_list[pid] = UNACQUIRED;
+	lptr->procs_hold_list[pid] = UNACQUIRED;
 	// release ld lock from bit mask
 	pptr->bm_locks[lockid] = UNACQUIRED;
 	pptr->wait_lockid = -1;
@@ -83,6 +83,7 @@ void releaseLDForProc(int pid, int lockid) {
         // checking for write process in waiting
         writerProcExist = isWriterProcessPresentInWaiting(lockid);
 		if (writerProcExist == -1) {
+            // if writer absent
 			prev = lastid(lptr->lqtail);
 			while (!isbadpid(prev) && prev != lptr->lqhead) {
 				removeWaitingProcess(prev, lockid, READ);
@@ -90,16 +91,18 @@ void releaseLDForProc(int pid, int lockid) {
 			}
 		}
 		else {
+            // if writer present
 			prev = lastid(lptr->lqtail);
             if (q[writerProcExist].qkey == maxprio) {
 				tdf = proctab[prev].wait_time - proctab[writerProcExist].wait_time;
 				if (tdf < 0)
 					tdf = -tdf;
 				if (tdf < 1000) {
+                    // time difference is less than 1sec                
 		            int readerProcHoldingLock = 0;
                     int i = 0;
 					for (; i < NPROC; i++) {
-						if (lptr->lproc_list[i] == ACQUIRED) {
+						if (lptr->procs_hold_list[i] == ACQUIRED) {
 							readerProcHoldingLock = 1;
 							break;
 						}
@@ -126,6 +129,6 @@ void releaseLDForProc(int pid, int lockid) {
 	}
 
 	lptr->lprio = getMaxPrioWaitingProcs(lockid);
-	maxprio = getMaxWaitingProcPrio(pid);
+	maxprio = getMaxAcquiredProcPrio(pid);
     pptr->pinh = (maxprio > pptr->pprio) ? maxprio : 0;
 }

@@ -5,30 +5,19 @@
 #include <lock.h>
 #include <stdio.h>
 
-struct  lentry  rw_locks[NLOCKS];
-
-void linit()
-{
-
+void linit() {
 	struct  lentry  *lptr;
-	nextlock = NLOCKS-1;
-	
-	int i;
-	int j;
-	
-	for (i=0;i<NLOCKS;i++) /* initialize lock descriptors */
-	{
+	nextlock = NLOCKS - 1;
+	int i = 0;
+	for (; i < NLOCKS; i++) {
 		lptr = &rw_locks[i];
 		lptr->lstate = 	LFREE;
 		lptr->lqtail = 1 + (lptr->lqhead = newqueue());
 		lptr->ltype = DELETED;
 		lptr->lprio = -1;
-		
-		/* initialize list maintained for processes holding the lock */
-		for (j=0;j<NPROC;j++)
-		{
-			lptr->lproc_list[j] = 0;
-		}	
+        int j = 0;
+		for (; j < NPROC; j++) {
+			lptr->procs_hold_list[j] = 0;
+        }
 	}
-
 }

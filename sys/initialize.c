@@ -32,8 +32,7 @@ LOCAL   int	sysinit();
 struct	pentry	proctab[NPROC]; /* process table			*/
 int	nextproc;		/* next process slot to use in create	*/
 struct	sentry	semaph[NSEM];	/* semaphore table			*/
-int	nextsem;		/* next sempahore slot to use in screate*/
-int 	nextlock;		
+int	nextsem;		/* next sempahore slot to use in screate*/	
 struct	qent	q[NQENT];	/* q table (see queue.c)		*/
 int	nextqueue;		/* next slot in q structure to use	*/
 char	*maxaddr;		/* max memory address (set by sizmem)	*/

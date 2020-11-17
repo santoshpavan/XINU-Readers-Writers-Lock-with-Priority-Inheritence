@@ -1,5 +1,3 @@
-/* lock.h - isbadlock */
-
 #ifndef _LOCK_H_
 #define _LOCK_H_
 
@@ -7,12 +5,8 @@
 #define	NLOCKS		50	/* number of maximum locks */
 #endif
 
-#define	LFREE	'\01'		/* this lock is free		*/
-#define	LUSED	'\02'		/* this lock is used		*/
-
-#ifndef DELETED
-#define DELETED  -6
-#endif
+#define	LFREE	0		/* this lock is free		*/
+#define	LUSED	1		/* this lock is used		*/
 
 #define READ     0
 #define WRITE    1
@@ -20,26 +14,26 @@
 #define ACQUIRED  1
 #define UNACQUIRED  0
 
-struct	lentry	{		/* lock table entry			*/
-	char	lstate;		/* the state LFREE or LUSED		*/
-	int	    lqhead;		/* q index of head of list		*/
-	int	    lqtail;		/* q index of tail of list		*/
-	int	    ltype;		/* lock type READ or WRITE		*/
-	int	    lprio;		/* maximum priority among lock's wait queue */
-	int 	lproc_list[NPROC]; /* bit mask of process ids currently holding the lock  */
+struct	lentry	{
+	int	    lstate;		/* LFREE or LUSED */
+	int	    lqhead;
+	int	    lqtail;
+	int	    ltype;		/* READ or WRITE */
+	int	    lprio;		/* max proc priority in waiting queue */
+	int 	procs_hold_list[NPROC]; /* procs holding this lock */
 };
-extern struct lentry rw_locks[];
-extern int nextlock;
+struct lentry rw_locks[NLOCKS];
+int nextlock;
 
 // lock.c
 extern void claimUnusedLock(int , int , int , int );
 extern int getProcessPriority(int);
 extern void cascadingRampUpPriorities(int);
 extern int getMaxPrioWaitingProcs(int);
-extern int getMaxWaitingProcPrio(int);
+extern int getMaxAcquiredProcPrio(int);
 
 extern unsigned long ctr1000;
 
-#define	isbadlock(lockid)	(lockid < 0 || lockid >= NLOCKS)
+#define	isbadlockid(lockid)	(lockid < 0 || lockid >= NLOCKS)
 
 #endif

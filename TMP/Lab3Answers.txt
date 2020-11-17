@@ -6,6 +6,16 @@ This increase in priority to the priority ceiling can be either done when there 
 Reference: https://en.wikipedia.org/wiki/Priority_ceiling_protocol
 
 2.
+Test Description:
+Consider three writers - writer A, writer B and writer C with priorities 10, 20 and 30.
+Being writers, they cannot access the critical section together, hence are the ideal selection for this test.
+First we make the lowest process, i.e. writer A (prio 10) acquire the lock and then the highest, i.e writer C (prio 30) tries to acquire it and fails, and then the medium, writer B (prio 20) tries to acquire it and fails. Failing makes them go into PRWAIT state and be present in the waiting queue for the lock.
+
+Expected Behaviour:
+Using locks, with priority inheritence, we should be able to see a change in the priority of the writer A, according to the highest priority process in its acquired lock's queue.
+Using semaphores, without priority inheritence, we should be able to see that the priority of the writer A, remains the same.
+
+OUTPUT:
 The following is the obtained output from the task1.c testing.
 TASK1:
 Testing Semphores...
@@ -19,6 +29,7 @@ Priority of writer:10
 -start writer 3, then sleep 1s. Writer B (prio 20) blocked on the lock
   B: to acquire sem
 Priority of writer:10
+Semaphore Testing OK
 
 Testing current Locks...
 -start writer 3, then sleep 1s. Lock granted to Writer A (prio 10)
@@ -27,12 +38,13 @@ Testing current Locks...
 Priority of writer:10
 -start writer 3, then sleep 1s. Writer C (prio 30) blocked on the lock
   C: to acquire lock
-Priority of writer:30
--start writer 2, then sleep 1s. Writer B (prio 20) blocked on the lock
-  B: to acquire lock
   A: to release sem
   C: acquired sem, sleep 1s
 Priority of writer:30
+-start writer 2, then sleep 1s. Writer B (prio 20) blocked on the lock
+  B: to acquire lock
+Priority of writer:30
+Lock Testing OK
 
 As, it can be seen, the priority of the writer A does not change when using semaphore and changes when using locks.
 So, when using semaphores,  if the writer A of priority 10 had not released the semaphore, the write B and writer C would have likely starved till write A is done. As, writer A is of lower priority, this gives rise to priority inversion.
@@ -63,3 +75,6 @@ Reader1-
   
 From the above series of executions, we have the buffer with time2 first, and then time1. But it was supposed to be time1 and then time2, in order.
 Hence, the issue in the given pseudo code is that we cannot ensure that the times will be added in the buffer in series.
+
+Note:
+I have discussed the questions with Vinayak Dubey and Archit Kwatra. I have just discussed the problems and not the solutions.

@@ -95,11 +95,7 @@ void cascadingRampUpPriorities(int lockid) {
 		if (lptr->procs_hold_list[i] == ACQUIRED) {
 			struct pentry *pptr = &proctab[i];
 			int maxprio = getMaxAcquiredProcPrio(i);
-			if (maxprio > pptr->pprio)
-				pptr->pinh = maxprio;
-            // maxprio is <= than original priority of pptr process
-			else
-				pptr->pinh = 0;
+            pptr->pinh = (maxprio > pptr->pprio) ? maxprio : 0;
             // continue recursion if applicable
 			if (!isbadlockid(pptr->waitlockid))
 				cascadingRampUpPriorities(pptr->waitlockid);
@@ -109,7 +105,7 @@ void cascadingRampUpPriorities(int lockid) {
 
 int getMaxAcquiredProcPrio(int pid) {
 	struct pentry *pptr = &proctab[pid];
-	int maxprio = -1;
+	int maxprio = MININT;
     int i = 0;
 	for (; i < NLOCKS; i++) {
 		if (pptr->locks_hold_list[i] == ACQUIRED) {

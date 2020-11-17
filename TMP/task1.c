@@ -9,6 +9,13 @@
 #define DEFAULT_LOCK_PRIO 20
 #endif
 
+#ifndef assert
+#define assert(x,error) if(!(x)){ \
+            kprintf(error);\
+            return;\
+            }    
+#endif
+
 /*
 first give to low prio
 then give to highes prio
@@ -35,17 +42,25 @@ void test_sems() {
     kprintf("-start writer 3, then sleep 1s. Sem granted to Writer A (prio 10)\n");
     resume(wr1);
     sleep (1);
-	kprintf("Priority of writer:%d\n", getprio(wr1));
+    int priowr1 = getprio(wr1);
+	kprintf("Priority of writer:%d\n", priowr1);
+    assert(priowr1 == 10, "Semaphore testing FAILED\n");
 
     kprintf("-start writer 3, then sleep 1s. Writer C (prio 30) blocked on the lock\n");
     resume(wr3);
     sleep (1);
-	kprintf("Priority of writer:%d\n", getprio(wr1));
+    priowr1 = getprio(wr1);
+	kprintf("Priority of writer:%d\n", priowr1);
+    assert(priowr1 == 10, "Semaphore testing FAILED\n");
     
     kprintf("-start writer 3, then sleep 1s. Writer B (prio 20) blocked on the lock\n");
     resume(wr2);
     sleep (1);
-	kprintf("Priority of writer:%d\n", getprio(wr1));
+    priowr1 = getprio(wr1);
+	kprintf("Priority of writer:%d\n", priowr1);
+    assert(priowr1 == 10, "Semaphore testing FAILED\n");
+    
+    kprintf ("Semaphore Testing OK\n");
 }
 
 void lockwriter (char msg, int lck)
@@ -68,17 +83,25 @@ void test_locks() {
     kprintf("-start writer 3, then sleep 1s. Lock granted to Writer A (prio 10)\n");
     resume(wr1);
     sleep (1);
-	kprintf("Priority of writer:%d\n", getprio(wr1));
+    int priowr1 = getprio(wr1);
+	kprintf("Priority of writer:%d\n", priowr1);
+    assert(priowr1 == 10, "Lock testing FAILED\n");
 
     kprintf("-start writer 3, then sleep 1s. Writer C (prio 30) blocked on the lock\n");
     resume(wr3);
     sleep (1);
-	kprintf("Priority of writer:%d\n", getprio(wr1));
+    priowr1 = getprio(wr1);
+	kprintf("Priority of writer:%d\n", priowr1);
+    assert(priowr1 == 30, "Lock testing FAILED\n");
     
     kprintf("-start writer 2, then sleep 1s. Writer B (prio 20) blocked on the lock\n");
     resume(wr2);
     sleep (1);
-	kprintf("Priority of writer:%d\n", getprio(wr1));
+    priowr1 = getprio(wr1);
+	kprintf("Priority of writer:%d\n", priowr1);
+    assert(priowr1 == 30, "Lock testing FAILED\n");
+    
+    kprintf ("Lock Testing OK\n");
 }
 
 void task1() {

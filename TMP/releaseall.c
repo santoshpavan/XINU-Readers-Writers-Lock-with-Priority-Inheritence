@@ -95,11 +95,10 @@ void releaseLocksandAssignNextProc(int pid, int lockid) {
     if yes, then find the procid with the max waiting time (within 1000)
     */
     
-	int maxprio = MININT;
     // if the waiting queue is not empty
 	if (nonempty(lptr->lqhead)) {
 		int procid = lastid(lptr->lqtail);
-		maxprio = lastkey(lptr->lqtail);
+		int maxprio = lastkey(lptr->lqtail);
         // checking for write process in waiting
         int writerProcExist = isWriterProcessPresentInWaiting(lockid);
 		if (!isbadpid(writerProcExist)) {
@@ -108,10 +107,13 @@ void releaseLocksandAssignNextProc(int pid, int lockid) {
             // if it's the last one
             if (q[writerProcExist].qkey == maxprio) {
 				unsigned long time_diff = 0;
-                if (proctab[procid].wait_time_start >= proctab[writerProcExist].wait_time_start)
-                    time_diff = proctab[procid].wait_time_start - proctab[writerProcExist].wait_time_start;
+                unsigned long time_now = ctr1000;
+                unsigned long waitime_proc = time_now - proctab[procid].wait_time_start;
+                unsigned long waitime_writer = time_now - proctab[writerProcExist].wait_time_start;
+                if (waitime_proc >= waitime_writer)
+                    time_diff = waitime_proc - waitime_writer;
                 else
-                    time_diff = proctab[writerProcExist].wait_time_start - proctab[procid].wait_time_start;
+                    time_diff = waitime_writer - waitime_proc;
 				if (time_diff < 1000) {
                     // time difference is less than 1sec                
 		            int flag = 0;
@@ -143,6 +145,6 @@ void releaseLocksandAssignNextProc(int pid, int lockid) {
     
     // updating the values after changes
 	lptr->lprio = getMaxPrioWaitingProcs(lockid);
-	maxprio = getMaxAcquiredProcPrio(pid);
+	int maxprio = getMaxAcquiredProcPrio(pid);
     pptr->pinh = (maxprio > pptr->pprio) ? maxprio : 0;
 }

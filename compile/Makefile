@@ -466,7 +466,8 @@ queue.o: ../sys/queue.c /usr/include/stdc-predef.h ../h/conf.h \
 read.o: ../sys/read.c /usr/include/stdc-predef.h ../h/conf.h \
  ../h/kernel.h ../h/systypes.h ../h/mem.h ../h/io.h
 ready.o: ../sys/ready.c /usr/include/stdc-predef.h ../h/conf.h \
- ../h/kernel.h ../h/systypes.h ../h/mem.h ../h/proc.h ../h/q.h
+ ../h/kernel.h ../h/systypes.h ../h/mem.h ../h/proc.h ../h/q.h \
+ ../h/lock.h
 receive.o: ../sys/receive.c /usr/include/stdc-predef.h ../h/conf.h \
  ../h/kernel.h ../h/systypes.h ../h/mem.h ../h/proc.h ../h/stdio.h
 recvclr.o: ../sys/recvclr.c /usr/include/stdc-predef.h ../h/conf.h \
@@ -574,6 +575,9 @@ lock.o: ../TMP/lock.c /usr/include/stdc-predef.h ../h/conf.h \
  ../h/lock.h ../h/stdio.h
 main.o: ../TMP/main.c /usr/include/stdc-predef.h ../h/conf.h \
  ../h/kernel.h ../h/systypes.h ../h/mem.h ../h/proc.h ../h/stdio.h \
+ ../h/lock.h
+ready.o: ../TMP/ready.c /usr/include/stdc-predef.h ../h/conf.h \
+ ../h/kernel.h ../h/systypes.h ../h/mem.h ../h/proc.h ../h/q.h \
  ../h/lock.h
 releaseall.o: ../TMP/releaseall.c /usr/include/stdc-predef.h ../h/conf.h \
  ../h/kernel.h ../h/systypes.h ../h/mem.h ../h/proc.h ../h/q.h \

@@ -166,6 +166,10 @@ void claimUnusedLock(int lockid, int type, int pid) {
     //locktab side    
     struct lentry *lptr = &locktab[lockid];
     lptr->ltype = type;
+    if (type == READ)
+        lptr->nreaders++;
+    else
+        lptr->nreaders = 0;
     lptr->lprio = -1;
 	lptr->procs_hold_list[currpid] = ACQUIRED;
 }

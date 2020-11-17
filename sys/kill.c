@@ -13,7 +13,7 @@
  * kill  --  kill a process and remove it from the system
  *------------------------------------------------------------------------
  */
-void releaseLDForWaitProc(int, int); 
+void releaseWaitProcNoClaim(int, int); 
   
 SYSCALL kill(int pid)
 {
@@ -39,6 +39,7 @@ SYSCALL kill(int pid)
 	int lockid = 0;
 	for (; lockid < NLOCKS; lockid++) {
 		if (pptr->locks_hold_list[lockid] == 1) {
+            // nreaders being updated here        
 			releaseLocksandAssignNextProc(pid, lockid);
 			resched_flag = 1;
 		}
@@ -47,7 +48,7 @@ SYSCALL kill(int pid)
     if (pptr->pstate == PRWAIT) {
     	if (!isbadlockid(pptr->waitlockid)) {
     		pptr->pinh = 0;
-    		releaseLDForWaitProc(pid, pptr->waitlockid);
+    		releaseWaitProcNoClaim(pid, pptr->waitlockid);
     	}
     }
         
@@ -92,15 +93,16 @@ SYSCALL kill(int pid)
 	return(OK);
 }
 
-void releaseLDForWaitProc(int pid, int lockid) {
-	struct lentry *lptr = &locktab[lockid];
+void releaseWaitProcNoClaim(int pid, int lockid) {
+    // proc side
+    dequeue(pid);
 	struct pentry *pptr = &proctab[pid];
-	dequeue(pid);
 	pptr->waitlockid = BADPID;
 	pptr->waittype = BADTYPE;
 	pptr->wait_time_start = 0;
 	pptr->lockreturn = DELETED;
-	lptr->lprio = getMaxPrioWaitingProcs(lockid);	
+    // lock side
+	locktab[lockid].lprio = getMaxPrioWaitingProcs(lockid);
 	cascadingRampUpPriorities(lockid);
 }
 

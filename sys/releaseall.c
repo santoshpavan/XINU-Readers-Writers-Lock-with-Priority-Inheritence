@@ -6,7 +6,7 @@
 #include <lock.h>
 #include <stdio.h>
 
-void removeWaitingProcess(int, int, int);
+void removeWaitingProcandClaim(int, int, int);
 int isWriterProcessPresentInWaiting(int);
 void releaseLocksandAssignNextProc(int, int);
 void writerAcquireHandler(int, int);
@@ -39,7 +39,7 @@ int releaseall(int numlocks, int locks,...) {
 	return OK;	
 }
 
-void removeWaitingProcess(int pid, int lockid, int type) {
+void removeWaitingProcandClaim(int pid, int lockid, int type) {
     dequeue(pid);
     claimUnusedLock(lockid, type, pid);
     locktab[lockid].lprio = getMaxPrioWaitingProcs(lockid);
@@ -62,7 +62,7 @@ void writerAcquireHandler(int lockid, int writer_pid) {
     struct lentry *lptr = &locktab[lockid];
     int procid = lastid(lptr->lqtail);
 	while (procid != writer_pid) {
-	    removeWaitingProcess(procid, lockid, READ);
+	    removeWaitingProcandClaim(procid, lockid, READ);
 		procid = q[procid].qprev;
 	}
 }
@@ -77,6 +77,8 @@ void releaseLocksandAssignNextProc(int pid, int lockid) {
 	struct lentry *lptr = &locktab[lockid];
 	struct pentry *pptr = &proctab[pid];
     // release the lock
+    if (lptr->ltype == READ)
+        lptr->nreaders--;
 	lptr->ltype = DELETED;
 	pptr->waittype = BADTYPE;
 	pptr->waitlockid = BADPID;
@@ -121,7 +123,7 @@ void releaseLocksandAssignNextProc(int pid, int lockid) {
 						}
 					}
 					if (flag == 0)
-						removeWaitingProcess(writerProcExist, lockid, WRITE);
+						removeWaitingProcandClaim(writerProcExist, lockid, WRITE);
 				}
 				else
 					writerAcquireHandler(lockid, writerProcExist);				
@@ -133,7 +135,7 @@ void releaseLocksandAssignNextProc(int pid, int lockid) {
             // if writer absent -- invalid pid
 			procid = lastid(lptr->lqtail);
 			while (!isbadpid(procid) && procid != lptr->lqhead) {
-				removeWaitingProcess(procid, lockid, READ);
+				removeWaitingProcandClaim(procid, lockid, READ);
 				procid = q[procid].qprev;
 			}
 		}

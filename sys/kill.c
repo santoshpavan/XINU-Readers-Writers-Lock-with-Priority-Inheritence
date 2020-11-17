@@ -71,11 +71,14 @@ SYSCALL kill(int pid)
     
 	switch (pptr->pstate) {
     	case PRCURR:	pptr->pstate = PRFREE;	/* suicide */
-    			resched();
+    			        resched();
+                        
     	case PRWAIT:	semaph[pptr->psem].semcnt++;
+        
     	case PRREADY:	dequeue(pid);
     			        pptr->pstate = PRFREE;
     			        break;
+                        
     	case PRSLEEP:
     	case PRTRECV:	unsleep(pid);   
                                                 /* fall through	*/

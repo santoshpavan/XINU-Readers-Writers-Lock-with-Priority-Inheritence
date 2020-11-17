@@ -11,7 +11,7 @@ void cascadingRampUpPriorities(int);
 int getNewProcPrio(int);
 void priorityInheritence(int, int);
 void processWaitForLock(int, int, int, int);
-void claimUnusedLock(int, int, int, int);
+void claimUnusedLock(int, int, int);
 int getMaxAcquiredProcPrio(int);
 
 int lock(int lockid, int type, int priority) {
@@ -37,7 +37,7 @@ int lock(int lockid, int type, int priority) {
 
     // DELETED implies available space
 	if (lptr->ltype == DELETED)
-		claimUnusedLock(lockid, type, priority, currpid);
+		claimUnusedLock(lockid, type, currpid);
     else if (lptr->ltype == READ) {
 		if (type == READ) {
             // collecting all the readers from tail till write
@@ -51,7 +51,7 @@ int lock(int lockid, int type, int priority) {
 				}
                 procid = q[procid].qnext;
 			}
-            claimUnusedLock(lockid, type, priority, currpid);
+            claimUnusedLock(lockid, type, currpid);
             // changing the priority
             lptr->lprio = getMaxPrioWaitingProcs(lockid);
             // cascading the changed priority
@@ -156,12 +156,13 @@ void processWaitForLock(int lockid, int type, int priority, int pid) {
 	resched();
 }
 
-void claimUnusedLock(int lockid, int type, int priority, int pid) {
+void claimUnusedLock(int lockid, int type, int pid) {
     //proctab side
     struct pentry *pptr = &proctab[pid];
 	pptr->waittype = BADTYPE;
 	pptr->waitlockid = BADPID;
 	pptr->locks_hold_list[lockid] = ACQUIRED;
+	pptr->wait_time_start = 0;
     //locktab side    
     struct lentry *lptr = &locktab[lockid];
     lptr->ltype = type;

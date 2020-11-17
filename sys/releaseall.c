@@ -41,17 +41,8 @@ int releaseall(int numlocks, int locks,...) {
 
 void removeWaitingProcess(int pid, int lockid, int type) {
     dequeue(pid);
-    // proc side
-	struct pentry *nptr = &proctab[pid];
-	nptr->waittype = BADTYPE;
-	nptr->waitlockid = BADPID;
-	nptr->wait_time_start = 0;
-    // lock side
-	struct lentry *lptr = &locktab[lockid];
- 	lptr->ltype = type;
-	nptr->locks_hold_list[lockid] = ACQUIRED;
-	lptr->procs_hold_list[pid] = ACQUIRED;
-    
+    claimUnusedLock(lockid, type, pid);
+    locktab[lockid].lprio = getMaxPrioWaitingProcs(lockid);
 	ready(pid, RESCHNO);
 }
 

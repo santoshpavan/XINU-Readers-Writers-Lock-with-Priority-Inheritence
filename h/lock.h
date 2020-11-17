@@ -21,6 +21,7 @@ struct	lentry	{
 	int	 ltype;		/* READ or WRITE */
 	int	 lprio;		/* max proc priority in waiting queue */
 	int  procs_hold_list[NPROC]; /* procs holding this lock */
+    int  nreaders;
 };
 struct lentry locktab[NLOCKS];
 int nextlock;
@@ -29,7 +30,7 @@ int lock(int, int, int);
 int releaseall(int, int,...);
 
 // lock.c
-extern void claimUnusedLock(int , int , int , int );
+extern void claimUnusedLock(int , int , int);
 extern int getNewProcPrio(int);
 extern void cascadingRampUpPriorities(int);
 extern int getMaxPrioWaitingProcs(int);

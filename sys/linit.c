@@ -14,8 +14,9 @@ void linit() {
 		lptr = &locktab[i];
 		lptr->lstate = 	LFREE;
 		lptr->ltype = DELETED;
-		lptr->lqtail = 1 + (lptr->lqhead = newqueue());
 		lptr->lprio = MININT;
+        lptr->nreaders = 0;
+		lptr->lqtail = 1 + (lptr->lqhead = newqueue());
         int j = 0;
 		for (; j < NPROC; j++) {
 			lptr->procs_hold_list[j] = UNACQUIRED;
